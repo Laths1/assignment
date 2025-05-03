@@ -10,7 +10,8 @@ def printMoves(moves):
       print(i)
 
 if __name__ == "__main__":
-    board = chess.Board('8/5k2/8/8/8/p1p1p2n/P1P1P3/RB2K2R w K - 12 45')
+    fen = input().strip()
+    board = chess.Board(fen)
     moves = [move.uci() for move in board.pseudo_legal_moves]
     moves.append('0000') #add the null move first
 
