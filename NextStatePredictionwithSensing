@@ -1,0 +1,43 @@
+import chess
+
+def printMoves(moves):
+  list = []
+  for move in moves:
+      list.append(move)
+  list.sort()
+  for i in list:
+      print(i)
+
+def createWindowMap(window):
+    entries = window.strip().split(';')
+    window_map = {}
+    for entry in entries:
+        if entry:
+            square, piece = entry.split(':')
+            window_map[square] = piece
+    return window_map
+
+if __name__ == "__main__":
+    N = int(input())
+    fens = [input().strip() for _ in range(N)]
+    window = input().strip()
+    windowMap = createWindowMap(window)
+
+    matches = []
+
+    for fen in fens:
+        board = chess.Board(fen)
+        flag = True
+        for squareStr, expected_piece in windowMap.items():
+            square = chess.parse_square(squareStr)
+            actual_piece = board.piece_at(square)
+            if expected_piece == '?':
+                continue
+            if actual_piece is None or actual_piece.symbol() != expected_piece:
+                flag = False
+                break
+        if flag:
+            matches.append(fen)
+
+    printMoves(matches)
+        
