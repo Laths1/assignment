@@ -10,8 +10,7 @@ def printMoves(moves):
       print(i)
 
 if __name__ == "__main__":
-    fen = input().strip()
-    board = chess.Board(fen)
+    board = chess.Board(input())
     moves = [move.uci() for move in board.pseudo_legal_moves]
     moves.append('0000') #add the null move first
 
@@ -19,4 +18,4 @@ if __name__ == "__main__":
         if not is_illegal_castle(board, move):
             moves.append(move.uci())
 
-    printMoves(moves)
+    printMoves(set(moves))
