@@ -31,7 +31,7 @@ if __name__ == "__main__":
         for squareStr, piece in windowMap.items():
             square = chess.parse_square(squareStr)
             piecefound = board.piece_at(square)
-            if piece == '?':
+            if piece == '?' and square is None:
                 continue
             if piecefound is None or piecefound.symbol() != piece:
                 flag = False
