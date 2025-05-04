@@ -1,6 +1,5 @@
 import chess
 
-
 def compareWindows(squares, pieces, board):
     for square, piece in zip(squares, pieces):  
         piece_type = board.piece_type_at(square)   
