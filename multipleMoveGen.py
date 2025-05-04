@@ -1,6 +1,6 @@
 import chess
 import chess.engine
-from statistics import mode
+from collections import Counter
 
 # autoMarkerPath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
 autoMarkerPath = '/opt/stockfish/stockfish'
@@ -15,13 +15,13 @@ for board, kingSquare in zip(boards, kingSquares):
         attackers = board.attackers(board.turn, kingSquare)
         if attackers:
             move = chess.Move(next(iter(attackers)), kingSquare)
-            # print(move.uci())
+            print(move.uci())
             engine.quit()
             exit()
   
-plays = [engine.play(board, chess.engine.Limit(time=0.5)) for board in boards]
+plays = [engine.play(board, chess.engine.Limit(time=0.1)) for board in boards]
 moves = sorted([play.move.uci() for play in plays])
-print(mode(moves))
+print(Counter(moves).most_common(1)[0][0])
 engine.quit()
 
 
