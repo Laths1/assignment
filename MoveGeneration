@@ -1,0 +1,27 @@
+import chess
+import chess.engine
+
+#osPath = r"C:\Users\fzm1209\Documents\stockfish.exe"
+autoMarkerPath = '/opt/stockfish/stockfish'
+
+fen = input()
+board = chess.Board(fen)
+engine = chess.engine.SimpleEngine.popen_uci(autoMarkerPath, setpgrp=True)
+opponentColor = not board.turn
+kingSquare = board.king(opponentColor)
+
+if kingSquare is not None:
+    attackers = board.attackers(board.turn, kingSquare)
+    if attackers:
+        fromSquare = attackers.pop()
+        move = chess.Move(fromSquare, kingSquare)
+        print(move.uci())
+        engine.quit()
+        exit()
+
+play = engine.play(board, chess.engine.Limit(time=0.5))
+move = play.move
+print(move.uci())
+engine.quit()
+
+
