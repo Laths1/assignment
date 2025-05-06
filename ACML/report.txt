@@ -1,0 +1,25 @@
+The system in [39] used 1696 High Power Field (HPF), i.e.,
+area visible under the maximum magnification power of the
+electron microscope, images at 40X magnification. Each
+HPF had a size of 1539 9 1376 pixels. The training data
+consisted of 1200 with only 749 labeled images. The
+testing dataset considered the rest of images. Dataset
+augmentation used cropping, rotation, and mirroring. It
+started by cropping into 512 9 512 pixels from original
+images then images were rescaled to 1024 9 1024. Rotation and mirroring were both applied to the original HPF
+images to produce more training samples. Rotation was
+applied with a step size of 45°.
+[Abdou, M. A. (2022). Literature review: Efficient deep neural networks techniques for medical image analysis. Neural Computing and Applications, 34(8), 5791-5812.]
+
+Image Pre-Processing and Data Augmentation
+Magnetic resonance images from the database were of different sizes and were provided in int16 format. These images represent the input layer of the network, so they were normalized and resized to 256 × 256 pixels. 122 In order to augment the dataset, we transformed each image in two ways. The first
+transformation was image rotation by 90 degrees. The second transformation was flipping images vertically, this way, we augmented our dataset three times, resulting in 9192 images.
+[Badža, M. M., & Barjaktarović, M. Č. (2020). Classification of brain tumors from MRI images using a convolutional neural network. Applied Sciences, 10(6), 1999.]
+
+1. https://www.kaggle.com/datasets/orvile/brain-cancer-mri-dataset/code
+
+2. Brain tumor images which are classified into 3 groups
+
+3. Resizing(keep the same number of pixels), greyscaling, normalisation
+
+4. CNN 
