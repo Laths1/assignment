@@ -18,8 +18,8 @@ transformation was image rotation by 90 degrees. The second transformation was f
 
 1. https://www.kaggle.com/datasets/orvile/brain-cancer-mri-dataset/code
 
-2. Brain tumor images which are classified into 3 groups
+2. Brain tumor images which are classified into 3 groups(glioma,menin,tumor). the aim is to classify the images into these three categories. Since we are considering medical images, it is important that we get as few misclassifications as this will impact the treatment process.
 
-3. Resizing(keep the same number of pixels), greyscaling, normalisation
+3. Resizing(keep the same number of pixels), greyscaling, normalisation. Augement the dataset to increases the size of the dataset. From the resulting augmented dataset, we can split the dataset into batches of 5, four of the batches are used for training and the last one is used for test. we rotate between which partitions are used for training and test.This is to avoid overfitting the model by resusing the same test set.
 
 4. CNN 
