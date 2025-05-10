@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image
 import torch
 import random
+import queue
 import torch.nn as nn
 import torch.nn.functional as f
 from torchvision.transforms import functional as F
@@ -65,11 +66,11 @@ class Model(nn.Module):
 class ModelTest:
 
   @staticmethod
-  def plotLoss(lossList, label, id):
+  def plotAccuracy(lossList, label, id):
     plt.plot(lossList, label=label)
     plt.xlabel('Episodes')
     plt.ylabel('Trainig loss')
-    plt.title('Performance {id}')
+    plt.title(f'Performance {id}')
     plt.legend()
     plt.show()
 
@@ -79,7 +80,7 @@ class ModelTest:
     plt.plot(valList, label='Validation')
     plt.xlabel('Episodes')
     plt.ylabel('Loss')
-    plt.title('Performance {id}')
+    plt.title(f'Performance {id}')
     plt.legend()
     plt.show()
 
@@ -147,9 +148,9 @@ class Process(multiprocessing.Process):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-                    validationLoss.append(runningLoss / len(validationLoader))
-                    accuracy.append(100 * correct / total)
-                    # print(f"Process {self.id} Validation Loss: {runningLoss/len(validationLoader)}")
+            validationLoss.append(runningLoss / len(validationLoader))
+            accuracy.append(100 * correct / total)
+            # print(f"Process {self.id} Validation Loss: {runningLoss/len(validationLoader)}")
 
         torch.save(net.state_dict(), self.param)
         self.result_queue.put({
@@ -187,24 +188,34 @@ if __name__ == "__main__":
     ]
 
     try:
+        
         for p in processes:
             p.start()
-        
-        for p in processes:
-            p.join() 
-        
-        while not result_q.empty():
-            results.append(result_q.get())
 
-        for result in results:
-            ModelTest.plotLoss(result['train_loss'], result['val_loss'], result['id'])
-            ModelTest.plotLoss(result['accuracy'], 'Accuracy', result['id'])
+        for p in processes:
+            p.join(timeout=86400)  # 24-hour timeout
+
+        results = []
+        while len(results) < len(processes):
+            try:
+                results.append(result_q.get(timeout=14400))
+            except queue.Empty:
+                print("Timeout waiting for results!")
+                break
+
+        # Plot results
+        for res in sorted(results, key=lambda x: x['id']):  # Plot in order
+            ModelTest.plotLoss(res['train_loss'], res['val_loss'], res['id'])
+            ModelTest.plotAccuracy(res['accuracy'], res['id'])
 
     except Exception as e:
-        print(f"Training failed: {e}")
+        print(f"Error: {e}")
         for p in processes:
             if p.is_alive():
                 p.terminate()
+    finally:
+        for p in processes:
+            p.join(timeout=1) 
     # model test
     
 

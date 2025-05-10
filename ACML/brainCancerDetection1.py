@@ -148,9 +148,9 @@ if __name__ == "__main__":
           _, predicted = torch.max(outputs.data, 1)
           total += labels.size(0)
           correct += (predicted == labels).sum().item()
-        validationLoss.append(runningLoss / len(validationLoader))
-        accuracy.append(100 * correct / total)
-        print(f"Validation Loss: {runningLoss/len(validationLoader)}")
+      validationLoss.append(runningLoss / len(validationLoader))
+      accuracy.append(100 * correct / total)
+      print(f"Validation Loss: {runningLoss/len(validationLoader)}")
 
     torch.save(net.state_dict(), 'brain_cancer_model_weights.pth')
 
