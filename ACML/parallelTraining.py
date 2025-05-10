@@ -18,6 +18,10 @@ import multiprocessing
 class DataHandler:
 
   @staticmethod
+  def rotate_image(x):
+    return F.rotate(x, random.choice([90, 180, 270]))
+
+  @staticmethod
   def transform(augment=False):
     base_transforms = [
       transforms.Resize((512, 512)),
@@ -27,7 +31,7 @@ class DataHandler:
     if augment:
       augmentation_transforms = [
         transforms.RandomVerticalFlip(),
-        transforms.Lambda(lambda x: F.rotate(x, random.choice([90, 180, 270])))
+        transforms.Lambda(DataHandler.rotate_image)
         ]
       return transforms.Compose(augmentation_transforms + base_transforms)
     return transforms.Compose(base_transforms)
@@ -215,7 +219,7 @@ if __name__ == "__main__":
                 p.terminate()
     finally:
         for p in processes:
-            p.join(timeout=1) 
+            p.join() 
     # model test
     
 
