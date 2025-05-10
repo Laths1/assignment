@@ -114,7 +114,7 @@ if __name__ == "__main__":
     # train
     numOfEpochs = 10
     loss = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9) 
+    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9) 
     totalLoss = []
     validationLoss = []
     accuracy = []
