@@ -210,7 +210,7 @@ if __name__ == "__main__":
         # Plot results
         for res in sorted(results, key=lambda x: x['id']):  # Plot in order
             ModelTest.plotLoss(res['train_loss'], res['val_loss'], res['id'])
-            ModelTest.plotAccuracy(res['accuracy'], res['id'])
+            ModelTest.plotAccuracy(res['accuracy'], "Accuracy",res['id'])
 
     except Exception as e:
         print(f"Error: {e}")
