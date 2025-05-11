@@ -44,13 +44,13 @@ class Model(nn.Module):
   
   def __init__(self):
     super().__init__()
-    self.conv1 = nn.Conv2d(3, 6, 5)  # (6, 508, 508)
-    self.pool1 = nn.MaxPool2d(2, 2)   # (6, 254, 254)
-    self.conv2 = nn.Conv2d(6, 16, 5) # (16, 250, 250)
-    self.fc1 = nn.Linear(16*125*125, 120)  
-    self.fc2 = nn.Linear(120, 84)
-    self.fc3 = nn.Linear(84, 3)
-
+    self.conv1 = nn.Conv2d(3, 4, 3, padding=1)  
+    self.pool1 = nn.MaxPool2d(2, 2)
+    self.conv2 = nn.Conv2d(4, 32, 3, padding=1) 
+    self.fc1 = nn.Linear(32*128*128, 16)  
+    self.fc2 = nn.Linear(16, 8) 
+    self.fc3 = nn.Linear(8, 3)
+    
   def forward(self, input):
     x = self.pool1(f.relu(self.conv1(input)))
     x = self.pool1(f.relu(self.conv2(x)))
@@ -63,10 +63,10 @@ class Model(nn.Module):
 class ModelTest:
 
   @staticmethod
-  def plotLoss(lossList, label):
+  def plotAccuracy(lossList, label):
     plt.plot(lossList, label=label)
     plt.xlabel('Episodes')
-    plt.ylabel('Trainig loss')
+    plt.ylabel(label)
     plt.title('Performance')
     plt.legend()
     plt.show()
@@ -89,7 +89,7 @@ class ModelTest:
     plt.show()
 
 if __name__ == "__main__":
-    data_dir = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\ACML\archive\Brain_Cancer raw MRI data\Brain_Cancer"
+    data_dir = "/kaggle/input/brain-cancer-mri-dataset/Brain_Cancer raw MRI data/Brain_Cancer"
     originalData = torchvision.datasets.ImageFolder(root=data_dir, transform=DataHandler.transform())
     augmentedData = torchvision.datasets.ImageFolder(root=data_dir, transform=DataHandler.transform(augment=True))
 
@@ -112,16 +112,15 @@ if __name__ == "__main__":
     net = Model()
 
     # train
-    numOfEpochs = 10
+    numOfEpochs = 20
     loss = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9) 
     totalLoss = []
     validationLoss = []
     accuracy = []
-
+    strikes = 0
     for epoch in range(numOfEpochs):
       runningLoss = 0.0
-
       #trainig phase
       for i, data in enumerate(trainLoader):
         inputs, labels = data
@@ -138,6 +137,8 @@ if __name__ == "__main__":
       net.eval()
       correct = 0
       total = 0
+      early_stop = 0
+    
       with torch.no_grad():
         runningLoss = 0.0
         for i, data in enumerate(validationLoader):
@@ -148,15 +149,24 @@ if __name__ == "__main__":
           _, predicted = torch.max(outputs.data, 1)
           total += labels.size(0)
           correct += (predicted == labels).sum().item()
+      early_stop = runningLoss / len(validationLoader)
       validationLoss.append(runningLoss / len(validationLoader))
       accuracy.append(100 * correct / total)
       print(f"Validation Loss: {runningLoss/len(validationLoader)}")
-
+        
+      if (len(validationLoss) > 1) and (early_stop > validationLoss[-2]):
+          #stops training is validation increses 3 times
+          if strikes < 3:
+            strikes += 1
+              print(f"strike: {strike}")
+          else:
+            print("Early stop")
+            break
     torch.save(net.state_dict(), 'brain_cancer_model_weights.pth')
 
     #model evaluation
     ModelTest.plotLoss(totalLoss, validationLoss)
-    ModelTest.plotLoss(accuracy, 'Accuracy')
+    ModelTest.plotAccuracy(accuracy, 'Accuracy')
 
     # model test
     
