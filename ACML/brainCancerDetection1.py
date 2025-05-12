@@ -158,7 +158,7 @@ if __name__ == "__main__":
           #stops training is validation increses 3 times
           if strikes < 3:
             strikes += 1
-            print(f"strike: {strike}")
+            print(f"strike: {strikes}")
           else:
             print("Early stop")
             break
