@@ -1,28 +1,93 @@
 import chess
 import chess.engine
+from reconchess.utilities import without_opponent_pieces, is_illegal_castle
+from collections import Counter
+import random
 
 class MyAgent(Player):
 
     def __init__(self):
-        pass
+        self.enginePath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
+        self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
 
     def handle_game_start(self, color, board, opponent_name):
-        pass
+        self.board = board
+        self.color = color
+        self.opponent_name = opponent_name
+        self.boards = set()
+        self.capture_square = None
 
     def handle_opponent_move_result(self, captured_my_piece, capture_square):
-        pass
-
+        if captured_my_piece:
+            moves = [move.uci() for move in self.board.pseudo_legal_moves]
+            moves.append('0000')
+            for move in without_opponent_pieces(self.board).generate_castling_moves():
+                if not is_illegal_castle(self.board, move):
+                    moves.append(move.uci())
+            for move in set(moves): 
+                if move[2:] == capture_square:
+                    temp_board = self.board.copy()
+                    temp_board.push(chess.Move.from_uci(move)) 
+                    self.boards.add(temp_board.fen())
+            self.board.remove_piece_at(capture_square)
+        
+    
     def choose_sense(self, sense_actions, move_actions, seconds_left):
-        pass
+        non_edge_squares = [
+            square for square in sense_actions
+            if square[0] not in ('a', 'h') and square[1] not in ('1', '8')
+        ]
+        if not non_edge_squares:
+            return random.choice(sense_actions)
+        return random.choice(non_edge_squares)
 
     def handle_sense_result(self, sense_result):
-        pass
+        def compareWindows(squares, pieces, board):
+            for square, piece in zip(squares, pieces):  
+                piece_type = board.piece_type_at(square)   
+                if piece_type is not None:
+                    piece_symbol = chess.piece_symbol(piece_type)  
+                    if piece_symbol.lower() != piece.lower(): 
+                        return False  
+            return True
+        
+        squares = []
+        pieces = []
+        for square, piece in sense_result:
+            squares.append(chess.parse_square(square))
+            pieces.append(piece)
+            
+        matching_fens = []
+        for board in self.boards:
+            if compareWindows(squares, pieces, board):
+                matching_fens.append(board.fen())
+
+        matching_fens.sort()
+        self.boards = set(matching_fens)
 
     def choose_move(self, move_actions, seconds_left):
-        pass
+        if len(self.boards) > 10000:
+            self.boards = set(random.sample(self.boards, 10000))
+        engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
+        opponentColor = [not board.turn for board in self.boards]
+        kingSquares = [board.king(color) for board, color in zip(self.boards, opponentColor)]
+
+        for board, kingSquare in zip(self.boards, kingSquares):
+            if kingSquare is not None:
+                attackers = board.attackers(board.turn, kingSquare)
+                if attackers:
+                    move = chess.Move(next(iter(attackers)), kingSquare)
+                    print(move.uci())
+                    engine.quit()
+                    exit()
+        
+        plays = [engine.play(board, chess.engine.Limit(time=(10/len(self.boards)))) for board in self.boards]
+        moves = sorted([play.move.uci() for play in plays])
+        # print(Counter(moves).most_common(1)[0][0])
+        return Counter(moves).most_common(1)[0][0]
 
     def handle_move_result(self, requested_move, taken_move, captured_opponent_piece, capture_square):
         pass
 
     def handle_game_end(self, winner_color, win_reason, game_history):
-        pass
+        self.engine.quit()
