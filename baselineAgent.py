@@ -3,6 +3,7 @@ import chess.engine
 from reconchess.utilities import without_opponent_pieces, is_illegal_castle
 from collections import Counter
 import random
+from reconchess import *
 
 class MyAgent(Player):
 
@@ -33,13 +34,14 @@ class MyAgent(Player):
         
     
     def choose_sense(self, sense_actions, move_actions, seconds_left):
+        algebraic_squares = [chess.SQUARE_NAMES[sq] for sq in sense_actions]
+        
         non_edge_squares = [
-            square for square in sense_actions
-            if square[0] not in ('a', 'h') and square[1] not in ('1', '8')
+            sq_index for sq_index, sq_name in zip(sense_actions, algebraic_squares)
+            if sq_name[0] not in ('a', 'h') and sq_name[1] not in ('1', '8')
         ]
-        if not non_edge_squares:
-            return random.choice(sense_actions)
-        return random.choice(non_edge_squares)
+        
+        return random.choice(non_edge_squares if non_edge_squares else sense_actions)
 
     def handle_sense_result(self, sense_result):
         def compareWindows(squares, pieces, board):
@@ -54,7 +56,7 @@ class MyAgent(Player):
         squares = []
         pieces = []
         for square, piece in sense_result:
-            squares.append(chess.parse_square(square))
+            squares.append(square)
             pieces.append(piece)
             
         matching_fens = []
@@ -84,7 +86,7 @@ class MyAgent(Player):
         plays = [engine.play(board, chess.engine.Limit(time=(10/len(self.boards)))) for board in self.boards]
         moves = sorted([play.move.uci() for play in plays])
         # print(Counter(moves).most_common(1)[0][0])
-        return Counter(moves).most_common(1)[0][0]
+        return chess.Move.from_uci(Counter(moves).most_common(1)[0][0])
 
     def handle_move_result(self, requested_move, taken_move, captured_opponent_piece, capture_square):
         pass
