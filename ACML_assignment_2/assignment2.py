@@ -2,9 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class kMeans:
-    def __init__(self, k, dataset, initalCentres, max_iter=1000):
+    def __init__(self, k, dataset, initalCentres):
         self.k = k
-        self.max_iter = max_iter
         self.dataset = dataset
         self.clusters = []
         for i in range(k):
@@ -15,7 +14,8 @@ class kMeans:
             self.clusters.append(cluster)
 
     def train(self):
-        for i in range(self.max_iter):
+        converged = False
+        while not converged:
             for c in self.clusters:
                 c["points"] = []
 
@@ -24,9 +24,14 @@ class kMeans:
                 min_index = norm.index(min(norm))
                 self.clusters[min_index]["points"].append(d)
 
-            for c in self.clusters:
-                if c["points"]:  # Avoid division by zero
-                    c["mean"] = np.mean(c["points"], axis=0)
+            converged = True 
+
+            for c in self.clusters: 
+                if c["points"]:
+                    new_mean = np.mean(c["points"], axis=0)
+                    if not np.allclose(c["mean"], new_mean):
+                        converged = False  # means changed => not converged
+                    c["mean"] = new_mean
 
         error = 0.0
         for c in self.clusters:
