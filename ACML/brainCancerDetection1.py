@@ -17,7 +17,7 @@ class DataHandler:
   @staticmethod
   def transform(augment=False):
     base_transforms = [
-      transforms.Resize((512, 512)),
+      transforms.Resize((128, 128)),
       transforms.ToTensor(),
       transforms.Normalize([0.5],[0.5])
     ]
@@ -44,20 +44,18 @@ class Model(nn.Module):
   
   def __init__(self):
     super().__init__()
-    self.conv1 = nn.Conv2d(3, 4, 3, padding=1)  
-    self.pool1 = nn.MaxPool2d(2, 2)
-    self.conv2 = nn.Conv2d(4, 32, 3, padding=1) 
-    self.fc1 = nn.Linear(32*128*128, 16)  
-    self.fc2 = nn.Linear(16, 8) 
-    self.fc3 = nn.Linear(8, 3)
-    
-  def forward(self, input):
-    x = self.pool1(f.relu(self.conv1(input)))
-    x = self.pool1(f.relu(self.conv2(x)))
+    self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)   # (8, 128, 128)
+    self.pool = nn.MaxPool2d(2, 2)                           # (8, 64, 64)
+    self.conv2 = nn.Conv2d(8, 16, kernel_size=3, padding=1)  # (16, 64, 64)    
+    self.fc1 = nn.Linear(16 * 32 * 32, 64)
+    self.fc2 = nn.Linear(64, 3)
+
+  def forward(self, x):
+    x = self.pool(f.relu(self.conv1(x)))
+    x = self.pool(f.relu(self.conv2(x)))
     x = torch.flatten(x, 1)
     x = f.relu(self.fc1(x))
-    x = f.relu(self.fc2(x))
-    x = self.fc3(x)
+    x = self.fc2(x)
     return x
 
 class ModelTest:

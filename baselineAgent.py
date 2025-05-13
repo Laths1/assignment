@@ -10,7 +10,7 @@ class MyAgent(Player):
     def __init__(self):
         self.enginePath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
         self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
-
+        
     def handle_game_start(self, color, board, opponent_name):
         self.board = board
         self.color = color
@@ -96,8 +96,12 @@ class MyAgent(Player):
         else:
             return random.choice(move_actions)
 
-    def handle_move_result(self, requested_move, taken_move, captured_opponent_piece, capture_square):
-        pass
+    def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
+                            captured_opponent_piece: bool, capture_square: Optional[Square]):
+        # if a move was executed, apply it to our board
+        if taken_move is not None:
+            self.board.push(taken_move)
+
 
     def handle_game_end(self, winner_color, win_reason, game_history):
         self.engine.quit()

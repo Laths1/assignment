@@ -25,4 +25,4 @@ transformation was image rotation by 90 degrees. The second transformation was f
 4. We developed a custom Convolutional Neural Network (CNN) architecture tailored specifically to our dataset, rather than relying on pre-existing or pre-trained models. CNNs are well‑suited to capture spatial hierarchies in image data via learnable filters.
 
 5. start with small model and gradually increase. early stop(when validation stops decreasing) parallel training with different parameters using 5-fold validation. when we trained initially, the trainig loss coverges however the validation loss would decrease and converge to a much higher loss. this is indicative of overfitting so we tried several ways to address the discreprency.
-: simplifying the model, increasing the number of epochs
+: simplifying the model, increasing the number of epochs. reducing the size of the image lead to faster training and better convergence in the validation set.
