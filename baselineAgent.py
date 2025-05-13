@@ -29,7 +29,7 @@ class MyAgent(Player):
                 if move[2:] == capture_square:
                     temp_board = self.board.copy()
                     temp_board.push(chess.Move.from_uci(move)) 
-                    self.boards.add(temp_board.fen())
+                    self.boards.add(temp_board)
             self.board.remove_piece_at(capture_square)
         
     
@@ -62,7 +62,7 @@ class MyAgent(Player):
         matching_fens = []
         for board in self.boards:
             if compareWindows(squares, pieces, board):
-                matching_fens.append(board.fen())
+                matching_fens.append(board)
 
         matching_fens.sort()
         self.boards = set(matching_fens)
@@ -70,7 +70,7 @@ class MyAgent(Player):
     def choose_move(self, move_actions, seconds_left):
         if len(self.boards) > 10000:
             self.boards = set(random.sample(self.boards, 10000))
-        engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
+
         opponentColor = [not board.turn for board in self.boards]
         kingSquares = [board.king(color) for board, color in zip(self.boards, opponentColor)]
 
@@ -78,15 +78,23 @@ class MyAgent(Player):
             if kingSquare is not None:
                 attackers = board.attackers(board.turn, kingSquare)
                 if attackers:
-                    move = chess.Move(next(iter(attackers)), kingSquare)
-                    print(move.uci())
-                    engine.quit()
-                    exit()
-        
-        plays = [engine.play(board, chess.engine.Limit(time=(10/len(self.boards)))) for board in self.boards]
-        moves = sorted([play.move.uci() for play in plays])
-        # print(Counter(moves).most_common(1)[0][0])
-        return chess.Move.from_uci(Counter(moves).most_common(1)[0][0])
+                    move = chess.Move(next(iter(attackers)), kingSquare)             
+
+        plays = []
+        for board in self.boards:
+            try:
+                result = self.engine.play(board, chess.engine.Limit(time=(10/len(self.boards))))
+                if result.move:
+                    plays.append(result)
+            except Exception as e:
+                pass
+
+        moves = sorted([play.move.uci() for play in plays if play.move])
+
+        if moves:
+            return chess.Move.from_uci(Counter(moves).most_common(1)[0][0])
+        else:
+            return random.choice(move_actions)
 
     def handle_move_result(self, requested_move, taken_move, captured_opponent_piece, capture_square):
         pass
