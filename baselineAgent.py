@@ -17,6 +17,8 @@ class MyAgent(Player):
         self.opponent_name = opponent_name
         self.boards = set()
         self.capture_square = None
+        self.initial_board = board.copy()
+
 
     def handle_opponent_move_result(self, captured_my_piece, capture_square):
         if captured_my_piece:
@@ -97,10 +99,29 @@ class MyAgent(Player):
             return random.choice(move_actions)
 
     def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
-                            captured_opponent_piece: bool, capture_square: Optional[Square]):
-        # if a move was executed, apply it to our board
+                            captured_opponent_piece: bool, capture_square: Optional[chess.Square]):
+        # Update the main board with the taken move
         if taken_move is not None:
             self.board.push(taken_move)
+
+        if requested_move != taken_move and requested_move is not None:
+            self.boards = {board for board in self.boards if not board.is_legal(requested_move)}
+
+        # filter after move is applied to all states
+        # new_boards = set()
+        # for board in self.boards:
+        #     if taken_move is None:
+        #         if not any(board.generate_legal_moves()):
+        #             new_boards.add(board.copy())
+        #     else:
+        #         if board.is_legal(taken_move):
+        #             new_board = board.copy()
+        #             new_board.push(taken_move)
+        #             new_boards.add(new_board)
+        # self.boards = new_boards
+            
+
+
 
 
     def handle_game_end(self, winner_color, win_reason, game_history):
