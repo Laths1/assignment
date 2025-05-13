@@ -1,95 +1,109 @@
 import chess
+import os
 import chess.engine
-from reconchess.utilities import without_opponent_pieces, is_illegal_castle
-from collections import Counter
 import random
-from reconchess import *
+from reconchess import Player, Color, Square, GameHistory, WinReason
+from reconchess.utilities import without_opponent_pieces, is_illegal_castle
+from statistics import mode, StatisticsError
+from typing import List, Tuple, Optional
 
-class MyAgent(Player):
-
+class Agent(Player):
     def __init__(self):
-        self.enginePath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
-        self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
+        self.board = None
+        self.color = None
+        self.my_piece_captured_square = None
+        self.narrowed_states = None
+        self.engine_path = r"C:\Users\fzm1209\Documents\stockfish.exe"
+        self.engine = None  # store engine for reuse and cleanup
 
-    def handle_game_start(self, color, board, opponent_name):
+
+    def handle_game_start(self, color: Color, board: chess.Board, opponent_name: str):
         self.board = board
         self.color = color
-        self.opponent_name = opponent_name
-        self.boards = set()
-        self.capture_square = None
+        if self.color == chess.WHITE:
+            self.handle_opponent_move_result(False, None)
 
-    def handle_opponent_move_result(self, captured_my_piece, capture_square):
-        if captured_my_piece:
+    def handle_opponent_move_result(self, captured_my_piece: bool, capture_square: Optional[Square]):
+        # if the opponent captured our piece, remove it from our board.
+        self.my_piece_captured_square = capture_square
+        if captured_my_piece and capture_square is not None:
             moves = [move.uci() for move in self.board.pseudo_legal_moves]
             moves.append('0000')
+
             for move in without_opponent_pieces(self.board).generate_castling_moves():
                 if not is_illegal_castle(self.board, move):
                     moves.append(move.uci())
+
+            states = set()
+
             for move in set(moves): 
                 if move[2:] == capture_square:
                     temp_board = self.board.copy()
                     temp_board.push(chess.Move.from_uci(move)) 
-                    self.boards.add(temp_board.fen())
-            self.board.remove_piece_at(capture_square)
-        
-    
-    def choose_sense(self, sense_actions, move_actions, seconds_left):
-        algebraic_squares = [chess.SQUARE_NAMES[sq] for sq in sense_actions]
-        
+                    states.add(temp_board.fen())
+
+            self.narrowed_states = states
+
+    def choose_sense(self, sense_actions: List[Square], move_actions: List[chess.Move], seconds_left: float):
         non_edge_squares = [
-            sq_index for sq_index, sq_name in zip(sense_actions, algebraic_squares)
-            if sq_name[0] not in ('a', 'h') and sq_name[1] not in ('1', '8')
-        ]
-        
-        return random.choice(non_edge_squares if non_edge_squares else sense_actions)
+                            square for square in sense_actions
+                            if square[0] not in ('a', 'h') and square[1] not in ('1', '8')
+                            ]
+        if not non_edge_squares:
+            return random.choice(sense_actions)
 
-    def handle_sense_result(self, sense_result):
-        def compareWindows(squares, pieces, board):
-            for square, piece in zip(squares, pieces):  
-                piece_type = board.piece_type_at(square)   
-                if piece_type is not None:
-                    piece_symbol = chess.piece_symbol(piece_type)  
-                    if piece_symbol.lower() != piece.lower(): 
-                        return False  
-            return True
-        
-        squares = []
-        pieces = []
+        return random.choice(non_edge_squares)
+
+    def handle_sense_result(self, sense_result: List[Tuple[Square, Optional[chess.Piece]]]):
         for square, piece in sense_result:
-            squares.append(square)
-            pieces.append(piece)
+            self.board.set_piece_at(square, piece)        
             
-        matching_fens = []
-        for board in self.boards:
-            if compareWindows(squares, pieces, board):
-                matching_fens.append(board.fen())
-
-        matching_fens.sort()
-        self.boards = set(matching_fens)
-
     def choose_move(self, move_actions, seconds_left):
-        if len(self.boards) > 10000:
-            self.boards = set(random.sample(self.boards, 10000))
-        engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
-        opponentColor = [not board.turn for board in self.boards]
-        kingSquares = [board.king(color) for board, color in zip(self.boards, opponentColor)]
+        boards = [chess.Board(fen) for fen in self.narrowed_states] if self.narrowed_states else [self.board.copy()]
+        if len(boards) > 10000:
+            boards = random.sample(boards, 10000)
 
-        for board, kingSquare in zip(self.boards, kingSquares):
+        time_limit = 10 / len(boards) if boards else 0.1
+
+        if self.engine is none:
+            engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, setpgrp=True)
+
+        opponentColor = [not board.turn for board in boards]
+        kingSquares = [board.king(color) for board, color in zip(boards, opponentColor)]
+
+        for board, kingSquare in zip(boards, kingSquares):
             if kingSquare is not None:
                 attackers = board.attackers(board.turn, kingSquare)
                 if attackers:
                     move = chess.Move(next(iter(attackers)), kingSquare)
-                    print(move.uci())
-                    engine.quit()
-                    exit()
-        
-        plays = [engine.play(board, chess.engine.Limit(time=(10/len(self.boards)))) for board in self.boards]
+                    if move in move_actions:
+                        return move
+    
+        plays = [engine.play(board, chess.engine.Limit(time=0.1)) for board in boards]
         moves = sorted([play.move.uci() for play in plays])
-        # print(Counter(moves).most_common(1)[0][0])
-        return chess.Move.from_uci(Counter(moves).most_common(1)[0][0])
 
-    def handle_move_result(self, requested_move, taken_move, captured_opponent_piece, capture_square):
-        pass
+        if not moves:
+            return random.choice(move_actions) if move_actions else None
 
-    def handle_game_end(self, winner_color, win_reason, game_history):
-        self.engine.quit()
+        try:
+            majority_move = mode(moves)
+        except StatisticsError:
+            majority_move = sorted(moves)[0]
+
+        final_move = chess.move.from_uci(majority_move)
+        return final_move
+
+    def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
+                            captured_opponent_piece: bool, capture_square: Optional[Square]):
+        # if a move was executed, apply it to our board
+        if taken_move is not None:
+            self.board.push(taken_move)
+
+    def handle_game_end(self, winner_color: Optional[Color], win_reason: Optional[WinReason],
+                        game_history: GameHistory):
+        if self.engine:
+            try:
+                self.engine.quit()
+            except:
+                pass
+            self.engine = None
