@@ -13,12 +13,14 @@ class Agent(Player):
         self.color = None
         self.my_piece_captured_square = None
         self.narrowed_states = None
-        self.engine_path = r""
+        self.engine_path = r"C:\Users\fzm1209\Documents\stockfish.exe"
+        self.engine = None  # store engine for reuse and cleanup
+
 
     def handle_game_start(self, color: Color, board: chess.Board, opponent_name: str):
         self.board = board
         self.color = color
-        if self.color == 'white':
+        if self.color == chess.WHITE:
             self.handle_opponent_move_result(False, None)
 
     def handle_opponent_move_result(self, captured_my_piece: bool, capture_square: Optional[Square]):
@@ -32,7 +34,6 @@ class Agent(Player):
                 if not is_illegal_castle(self.board, move):
                     moves.append(move.uci())
 
-
             states = set()
 
             for move in set(moves): 
@@ -43,10 +44,10 @@ class Agent(Player):
 
             self.narrowed_states = states
 
-    def choose_sense(self, sense_actions, move_actions, seconds_left):
+    def choose_sense(self, sense_actions: List[Square], move_actions: List[chess.Move], seconds_left: float):
         non_edge_squares = [
                             square for square in sense_actions
-                            if square[0] not in ('a', 'h') and square[1] not in ('1', '8')
+                            if chess.square_file(square) not in (0, 7) and chess.square_rank(square) not in (0, 7)
                             ]
         if not non_edge_squares:
             return random.choice(sense_actions)
@@ -54,7 +55,6 @@ class Agent(Player):
         return random.choice(non_edge_squares)
 
     def handle_sense_result(self, sense_result: List[Tuple[Square, Optional[chess.Piece]]]):
-        # add the pieces in the sense result to our board
         for square, piece in sense_result:
             self.board.set_piece_at(square, piece)        
             
@@ -64,8 +64,11 @@ class Agent(Player):
             boards = random.sample(boards, 10000)
 
         time_limit = 10 / len(boards) if boards else 0.1
-        engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, setpgrp=True)
 
+        if self.engine is None:
+            self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, setpgrp=True)
+
+        
         opponentColor = [not board.turn for board in boards]
         kingSquares = [board.king(color) for board, color in zip(boards, opponentColor)]
 
@@ -74,20 +77,33 @@ class Agent(Player):
                 attackers = board.attackers(board.turn, kingSquare)
                 if attackers:
                     move = chess.Move(next(iter(attackers)), kingSquare)
-                    # print(move.uci())
-                    engine.quit()
-                    exit()
+                    if move in move_actions:
+                        return move
+    
+        plays = [self.engine.play(board, chess.engine.Limit(time=time_limit)) for board in boards]
 
-        plays = [engine.play(board, chess.engine.Limit(time=0.1)) for board in boards]
+        for board in boards:
+            try:
+                result = self.engine.play(board, chess.engine.Limit(time=0.5))
+                if result.move in move_actions:
+                    plays.append(result.move.uci())
+            except Exception as e:
+                continue
         moves = sorted([play.move.uci() for play in plays])
+
+        if not moves:
+            return random.choice(move_actions) if move_actions else None
 
         try:
             majority_move = mode(moves)
         except StatisticsError:
             majority_move = sorted(moves)[0]
 
-        engine.quit()
-        return majority_move
+        final_move = chess.Move.from_uci(majority_move)
+        if final_move in move_actions:
+            return final_move
+        else:
+            return random.choice(move_actions)
 
     def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
                             captured_opponent_piece: bool, capture_square: Optional[Square]):
@@ -97,8 +113,9 @@ class Agent(Player):
 
     def handle_game_end(self, winner_color: Optional[Color], win_reason: Optional[WinReason],
                         game_history: GameHistory):
-        try:
-            # if the engine is already terminated then this call will throw an exception
-            self.engine.quit()
-        except chess.engine.EngineTerminatedError:
-            pass
+        if self.engine:
+            try:
+                self.engine.quit()
+            except:
+                pass
+            self.engine = None
