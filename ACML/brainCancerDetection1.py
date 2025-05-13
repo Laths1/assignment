@@ -44,9 +44,9 @@ class Model(nn.Module):
   
   def __init__(self):
     super().__init__()
-    self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)   # (8, 128, 128)
+    self.conv1 = nn.Conv2d(3, 8, 3, padding=1)   # (8, 128, 128)
     self.pool = nn.MaxPool2d(2, 2)                           # (8, 64, 64)
-    self.conv2 = nn.Conv2d(8, 16, kernel_size=3, padding=1)  # (16, 64, 64)    
+    self.conv2 = nn.Conv2d(8, 16, 3, padding=1)  # (16, 64, 64)    
     self.fc1 = nn.Linear(16 * 32 * 32, 64)
     self.fc2 = nn.Linear(64, 3)
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     train_set, test_set = random_split(allData, [train_size, test_size])
     train_batches, val_sets = DataHandler.dataSplit(train_set)
 
-    group = 0
+    group = 1
 
     trainLoader = torch.utils.data.DataLoader(train_batches[group], batch_size=32, shuffle=True)
     validationLoader = torch.utils.data.DataLoader(val_sets[group], batch_size=32, shuffle=True)
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # train
     numOfEpochs = 20
     loss = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9) 
+    optimizer = optim.Adam(net.parameters(), lr=0.001) 
     totalLoss = []
     validationLoss = []
     accuracy = []
