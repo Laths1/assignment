@@ -102,23 +102,25 @@ class MyAgent(Player):
                             captured_opponent_piece: bool, capture_square: Optional[chess.Square]):
         # Update the main board with the taken move
         if taken_move is not None:
-            self.board.push(taken_move)
+            if self.board.is_legal(taken_move):  # Check legality first
+                self.board.push(taken_move)
+        
 
         if requested_move != taken_move and requested_move is not None:
             self.boards = {board for board in self.boards if not board.is_legal(requested_move)}
 
         # filter after move is applied to all states
-        # new_boards = set()
-        # for board in self.boards:
-        #     if taken_move is None:
-        #         if not any(board.generate_legal_moves()):
-        #             new_boards.add(board.copy())
-        #     else:
-        #         if board.is_legal(taken_move):
-        #             new_board = board.copy()
-        #             new_board.push(taken_move)
-        #             new_boards.add(new_board)
-        # self.boards = new_boards
+        new_boards = set()
+        for board in self.boards:
+            if taken_move is None:
+                if not any(board.generate_legal_moves()):
+                    new_boards.add(board.copy())
+            else:
+                if board.is_legal(taken_move):
+                    new_board = board.copy()
+                    new_board.push(taken_move)
+                    new_boards.add(new_board)
+        self.boards = new_boards
             
 
 

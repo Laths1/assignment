@@ -3,7 +3,7 @@ import random
 from reconchess import *
 import os
 
-stockfish_path = r"c:\Users\fzm1209\Documents\stockfish.exe"
+stockfish_path = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
 
 
 class TroutBot(Player):

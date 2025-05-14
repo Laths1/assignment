@@ -1,0 +1,12 @@
+Round robin: 10 rounds, win:1, draw: 0.5, loss:0
+these result consider the cases where the troutbot engine did not fail.
+incases where thr trout bot engine failed playing againstrandombot, the winner was uniformily random. in cases where the trout bot engine failed againt MyAgent, troutBot lost most of the time.
+try:
+            self.board.turn = self.color
+            self.board.clear_stack()
+            result = self.engine.play(self.board, chess.engine.Limit(time=0.5))
+            return result.move
+        except chess.engine.EngineTerminatedError:
+            print('Stockfish Engine died')
+        except chess.engine.EngineError:
+            print('Stockfish Engine bad state at "{}"'.format(self.board.fen()))
