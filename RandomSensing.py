@@ -144,7 +144,10 @@ class MyAgent(Player):
 
         # 3) Otherwise: poll Stockfish on each board and vote
         suggestions = []
-        time_per_board = 10/len(self.boards)
+        if len(self.boards) > 0:
+            time_per_board = 10/len(self.boards)
+        else:
+            time_per_board = 0.2
 
         for board in self.boards:
             # rebuild from FEN to clear nulls/history
@@ -172,7 +175,8 @@ class MyAgent(Player):
             return Counter(suggestions).most_common(1)[0][0]
 
         # 4) Fallback to random legal move
-        # return random.choice(legal_moves)
+        print("random")
+        return random.choice(legal_moves)
 
 
 

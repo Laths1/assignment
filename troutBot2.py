@@ -98,6 +98,7 @@ class TroutBot(Player):
                         game_history: GameHistory):
         try:
             # if the engine is already terminated then this call will throw an exception
+            print(win_reason)
             self.engine.quit()
         except chess.engine.EngineTerminatedError:
             pass
