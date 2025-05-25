@@ -8,7 +8,7 @@ from reconchess import *
 class MyAgent(Player):
 
     def __init__(self):
-        self.enginePath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
+        self.enginePath = r"C:\Users\fzm1209\Documents\stockfish.exe"
         self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
         
     def handle_game_start(self, color, board, opponent_name):
@@ -105,6 +105,16 @@ class MyAgent(Player):
             matching_boards = [list(self.boards)[0].copy()]
         self.boards = matching_boards
 
+
+    def _restart_engine(self):
+        try:
+            self.engine.quit()
+        except:
+            pass  # already dead or terminated
+        print("Restarting Stockfish engine...")
+        self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
+
+
     def choose_move(self, move_actions, seconds_left):
     # 1) Build a list of legal chess.Move objects
         if len(self.boards) > 10000:
@@ -145,9 +155,7 @@ class MyAgent(Player):
         # 3) Otherwise: poll Stockfish on each board and vote
         suggestions = []
         if len(self.boards) > 0:
-            time_per_board = 10/len(self.boards)
-        else:
-            time_per_board = 0.2
+            time_per_board = max(0.01, 10 / len(self.boards))
 
         for board in self.boards:
             # rebuild from FEN to clear nulls/history
@@ -167,6 +175,10 @@ class MyAgent(Player):
                 )
                 if result.move in legal_moves:
                     suggestions.append(result.move)
+            except chess.engine.EngineTerminatedError:
+                print("Stockfish crashed, attempting recovery...")
+                self._restart_engine()
+                continue
             except chess.engine.EngineError:
                 continue
 
@@ -175,8 +187,7 @@ class MyAgent(Player):
             return Counter(suggestions).most_common(1)[0][0]
 
         # 4) Fallback to random legal move
-        print("random")
-        return random.choice(legal_moves)
+        # return random.choice(legal_moves)
 
 
 
@@ -222,4 +233,7 @@ class MyAgent(Player):
 
 
     def handle_game_end(self, winner_color, win_reason, game_history):
-        self.engine.quit()
+        try:
+            self.engine.quit()
+        except chess.engine.EngineTerminatedError:
+            print("Engine was already terminated.")
