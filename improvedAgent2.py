@@ -12,6 +12,7 @@ class improvedAgent(Player):
         self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
         self.king_square_counts = Counter()
         self.opponent_color = None
+        self.my_piece_captured_square = None
 
     def handle_game_start(self, color, board, opponent_name):
         self.board = board
@@ -22,15 +23,19 @@ class improvedAgent(Player):
         self.capture_square = None
         self.my_piece_captured_square = None
         self.moveCount = 0
-        possibleBlackKing = ["a7","b7","c7","d7","e7","f7","g7","h7"]
-        possibleWhiteKing = ["a2","b2","c2","d2","e2","f2","g2","h2"]
+        possibleBlackKing = ["b7","c7","d7","e7","f7","g7"]
+        possibleWhiteKing = ["b2","c2","d2","e2","f2","g2"]
         centreSquares = ["c4","c5","d4","d5","e4","e5","f4","f5"]
         self.centreSquares = [chess.parse_square(sq) for sq in centreSquares]
         self.possibleBlackKing = [chess.parse_square(sq) for sq in possibleBlackKing]
         self.possibleWhiteKing = [chess.parse_square(sq) for sq in possibleWhiteKing]
+        self.castled = False
 
 
     def handle_opponent_move_result(self, captured_my_piece, capture_square):
+        self.my_piece_captured_square = capture_square
+        if captured_my_piece:
+            self.board.remove_piece_at(capture_square)
         new_boards = []
         
         for board in self.boards:
@@ -69,13 +74,15 @@ class improvedAgent(Player):
     
     def choose_sense(self, sense_actions: List[Square], move_actions: List[chess.Move], seconds_left: float) -> Optional[Square]:
         
+        future_move = self.choose_move(move_actions, seconds_left)
+        if future_move is not None and self.board.piece_at(future_move.to_square) is not None:
+            return future_move.to_square
+
         if self.my_piece_captured_square:
-            print("recaptured a piece")
             return self.my_piece_captured_square
-        
+    
         if self.moveCount < 5:
             self.moveCount += 1
-            print("openning")
             return random.choice(self.centreSquares)
 
         likely_king_squares = []
@@ -84,23 +91,19 @@ class improvedAgent(Player):
             king_sq = board.king(opp_color)
             if king_sq is not None:
                 likely_king_squares.append(king_sq)
-
-        if likely_king_squares:
+        rand_val = random.random()
+        if likely_king_squares and rand_val < 0.5:
             most_common_king_square = Counter(likely_king_squares).most_common(1)[0][0]
             if most_common_king_square in sense_actions:
-                print("Most likely king square")
                 return most_common_king_square
 
         rand_val = random.random()
-        if rand_val < 0.5:
+        if rand_val < 0.4:
             if self.color == chess.WHITE:
-                print("Possible black king square")
                 return random.choice([sq for sq in self.possibleBlackKing if sq in sense_actions])
             else:
-                print("Possible white king square")
                 return random.choice([sq for sq in self.possibleWhiteKing if sq in sense_actions])
-        elif rand_val < 0.75:
-            print("centre squares")
+        elif rand_val < 0.65:
             return random.choice([sq for sq in self.centreSquares if sq in sense_actions])
 
         algebraic_squares = [chess.SQUARE_NAMES[sq] for sq in sense_actions]
@@ -108,7 +111,6 @@ class improvedAgent(Player):
             sq_index for sq_index, sq_name in zip(sense_actions, algebraic_squares)
             if sq_name[0] not in ('a', 'h') and sq_name[1] not in ('1', '8')
         ]
-        print("Random sense")
         return random.choice(non_edge_squares if non_edge_squares else sense_actions)
 
     def handle_sense_result(self, sense_result):
@@ -116,6 +118,8 @@ class improvedAgent(Player):
         Filters possible board states based on the sensing result.
         Only keeps boards that match all sensed squares exactly.
         """
+        for square, piece in sense_result:
+            self.board.set_piece_at(square, piece)
         # Convert sense_result to a dictionary for easier lookup
         sense_data = {square: piece for square, piece in sense_result}
         
@@ -161,37 +165,26 @@ class improvedAgent(Player):
         if not legal_moves:
             return None
 
+        # 1) castle if we can
+      
         # 2) First pass: look for any direct capture of the opponent’s king
-        king_capture_moves = []
-        for board in self.boards:
-            # Whose king are we attacking?
-            opp_color = not board.turn
-            king_sq = board.king(opp_color)
-            if king_sq is None:
-                continue
+        enemy_king_square = self.board.king(not self.color)
 
-            # Who attacks that square?
-            attackers = board.attackers(board.turn, king_sq)
-            if not attackers:
-                continue
-
-            # Pick one attacker → capture move
-            frm = next(iter(attackers))
-            cap_move = chess.Move(frm, king_sq)
-            if cap_move in legal_moves:
-                king_capture_moves.append(cap_move)
-
-        if king_capture_moves:
-            # If multiple boards allow different king‐captures, pick the most common
-            return Counter(king_capture_moves).most_common(1)[0][0]
+        if enemy_king_square:
+            # if there are any ally pieces that can take king, execute one of those moves
+            enemy_king_attackers = self.board.attackers(self.color, enemy_king_square)
+            if enemy_king_attackers:
+                attacker_square = enemy_king_attackers.pop()
+                print("king capture")
+                return chess.Move(attacker_square, enemy_king_square)
 
         # 3) Otherwise: poll Stockfish on each board and vote
         suggestions = []
-        if len(self.boards) > 0:
+        if len(self.boards) > 20:
             time_per_board = 10/len(self.boards)
         else:
-            time_per_board = 0.2
-
+            time_per_board = 0.001
+        
         for board in self.boards:
             # rebuild from FEN to clear nulls/history
             temp = chess.Board(board.fen())
@@ -214,9 +207,15 @@ class improvedAgent(Player):
                 continue
 
         if suggestions:
-            return Counter(suggestions).most_common(1)[0][0]
+            move = Counter(suggestions).most_common(1)[0][0]
+            if move in legal_moves:
+                print("engine")
+                return move
+            print("random engine")
+            return random.choice(suggestions)
 
         # 4) Fallback to random legal move
+        print("random")
         return random.choice(legal_moves)
 
 
@@ -226,6 +225,7 @@ class improvedAgent(Player):
                        taken_move: Optional[chess.Move],
                        captured_opponent_piece: bool,
                        capture_square: Optional[chess.Square]):
+        
     # 1) First: update your “true” board with whatever was actually played
         if taken_move is not None:
             if taken_move in self.board.legal_moves:
