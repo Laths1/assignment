@@ -8,7 +8,7 @@ from reconchess import *
 class MyAgent(Player):
 
     def __init__(self):
-        self.enginePath = r"C:\Users\fzm1209\Documents\stockfish.exe"
+        self.enginePath = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\stockfish\stockfish.exe"
         self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
         
     def handle_game_start(self, color, board, opponent_name):
@@ -155,7 +155,7 @@ class MyAgent(Player):
         # 3) Otherwise: poll Stockfish on each board and vote
         suggestions = []
         if len(self.boards) > 0:
-            time_per_board = max(0.01, 10 / len(self.boards))
+            time_per_board = max(0.005, 10 / len(self.boards))
 
         for board in self.boards:
             # rebuild from FEN to clear nulls/history

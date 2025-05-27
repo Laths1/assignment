@@ -74,13 +74,13 @@ class improvedAgent(Player):
     
     def choose_sense(self, sense_actions: List[Square], move_actions: List[chess.Move], seconds_left: float) -> Optional[Square]:
         
+        if self.my_piece_captured_square:
+            return self.my_piece_captured_square
+        
         future_move = self.choose_move(move_actions, seconds_left)
         if future_move is not None and self.board.piece_at(future_move.to_square) is not None:
             return future_move.to_square
 
-        if self.my_piece_captured_square:
-            return self.my_piece_captured_square
-    
         if self.moveCount < 5:
             self.moveCount += 1
             return random.choice(self.centreSquares)
@@ -91,19 +91,20 @@ class improvedAgent(Player):
             king_sq = board.king(opp_color)
             if king_sq is not None:
                 likely_king_squares.append(king_sq)
+
         rand_val = random.random()
-        if likely_king_squares and rand_val < 0.5:
+        if likely_king_squares and rand_val < 0.6:
             most_common_king_square = Counter(likely_king_squares).most_common(1)[0][0]
             if most_common_king_square in sense_actions:
                 return most_common_king_square
 
         rand_val = random.random()
-        if rand_val < 0.4:
+        if rand_val < 0.3:
             if self.color == chess.WHITE:
                 return random.choice([sq for sq in self.possibleBlackKing if sq in sense_actions])
             else:
                 return random.choice([sq for sq in self.possibleWhiteKing if sq in sense_actions])
-        elif rand_val < 0.65:
+        elif rand_val < 1:
             return random.choice([sq for sq in self.centreSquares if sq in sense_actions])
 
         algebraic_squares = [chess.SQUARE_NAMES[sq] for sq in sense_actions]
@@ -152,6 +153,14 @@ class improvedAgent(Player):
             matching_boards = [list(self.boards)[0].copy()]
         self.boards = matching_boards
 
+    def _restart_engine(self):
+        try:
+            self.engine.quit()
+        except:
+            pass  # already dead or terminated
+        print("Restarting Stockfish engine...")
+        self.engine = chess.engine.SimpleEngine.popen_uci(self.enginePath, setpgrp=True)
+
     def choose_move(self, move_actions, seconds_left):
     # 1) Build a list of legal chess.Move objects
         if len(self.boards) > 10000:
@@ -183,7 +192,7 @@ class improvedAgent(Player):
         if len(self.boards) > 20:
             time_per_board = 10/len(self.boards)
         else:
-            time_per_board = 0.001
+            time_per_board = 0.005
         
         for board in self.boards:
             # rebuild from FEN to clear nulls/history
@@ -203,7 +212,12 @@ class improvedAgent(Player):
                 )
                 if result.move in legal_moves:
                     suggestions.append(result.move)
-            except chess.engine.EngineError:
+            except chess.engine.EngineTerminatedError:
+                print("Stockfish crashed, attempting recovery...")
+                self._restart_engine()
+                continue
+            except Exception as e:
+                print(f"Error during Stockfish evaluation: {e}")
                 continue
 
         if suggestions:
@@ -259,8 +273,6 @@ class improvedAgent(Player):
                 b for b in self.boards
                 if requested_move not in b.legal_moves
             ]
-
-
 
     def handle_game_end(self, winner_color, win_reason, game_history):
         print(win_reason)
