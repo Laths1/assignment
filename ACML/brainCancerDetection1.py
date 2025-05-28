@@ -48,6 +48,7 @@ class Model(nn.Module):
     self.pool = nn.MaxPool2d(2, 2)                           # (8, 64, 64)
     self.conv2 = nn.Conv2d(8, 16, 3, padding=1)  # (16, 64, 64)    
     self.fc1 = nn.Linear(16 * 32 * 32, 64)
+    self.dropout = nn.Dropout(0.5)
     self.fc2 = nn.Linear(64, 3)
 
   def forward(self, x):
@@ -55,6 +56,7 @@ class Model(nn.Module):
     x = self.pool(f.relu(self.conv2(x)))
     x = torch.flatten(x, 1)
     x = f.relu(self.fc1(x))
+    x = self.dropout(x)
     x = self.fc2(x)
     return x
 
@@ -110,7 +112,7 @@ if __name__ == "__main__":
     net = Model()
 
     # train
-    numOfEpochs = 20
+    numOfEpochs = 10
     loss = nn.CrossEntropyLoss()
     optimizer = optim.Adam(net.parameters(), lr=0.001) 
     totalLoss = []
@@ -167,7 +169,26 @@ if __name__ == "__main__":
     ModelTest.plotAccuracy(accuracy, 'Accuracy')
 
     # model test
+    testLoader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False)
+    net.eval()
+    all_preds = []
+    all_labels = []
     
+    with torch.no_grad():
+        for inputs, labels in testLoader:
+            outputs = net(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    
+    # Plot confusion matrix
+    ModelTest.cofusionMatrix(all_labels, all_preds)
+    
+    #accuracy on test
+    correct = sum(np.array(all_preds) == np.array(all_labels))
+    total = len(all_labels)
+    test_accuracy = 100 * correct / total
+    print(f"Test Accuracy: {test_accuracy:.2f}%")
 
   
 
