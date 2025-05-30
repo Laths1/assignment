@@ -51,10 +51,11 @@ class Model(nn.Module):
   
   def __init__(self):
     super().__init__()
-    self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)   # (8, 128, 128)
+    self.conv1 = nn.Conv2d(3, 8, 3, padding=1)   # (8, 128, 128)
     self.pool = nn.MaxPool2d(2, 2)                           # (8, 64, 64)
-    self.conv2 = nn.Conv2d(8, 16, kernel_size=3, padding=1)  # (16, 64, 64)    
+    self.conv2 = nn.Conv2d(8, 16, 3, padding=1)  # (16, 64, 64)    
     self.fc1 = nn.Linear(16 * 32 * 32, 64)
+    self.dropout = nn.Dropout(0.5)
     self.fc2 = nn.Linear(64, 3)
 
   def forward(self, x):
@@ -62,6 +63,7 @@ class Model(nn.Module):
     x = self.pool(f.relu(self.conv2(x)))
     x = torch.flatten(x, 1)
     x = f.relu(self.fc1(x))
+    x = self.dropout(x)
     x = self.fc2(x)
     return x
 
@@ -116,7 +118,7 @@ class Process(multiprocessing.Process):
         # train
         numOfEpochs = self.epochs
         loss = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(net.parameters(), lr=self.lr, momentum=0.9) 
+        optimizer = optim.Adam(net.parameters(), lr=self.lr) 
         totalLoss = []
         validationLoss = []
         accuracy = []
@@ -163,7 +165,7 @@ class Process(multiprocessing.Process):
         })
 
 if __name__ == "__main__":
-    data_dir = r"C:\Users\lathi\Documents\SCHOOL\Honours\AI\assignment\ACML\archive\Brain_Cancer raw MRI data\Brain_Cancer"
+    data_dir = "/kaggle/input/brain-cancer-mri-dataset/Brain_Cancer raw MRI data/Brain_Cancer"
     originalData = torchvision.datasets.ImageFolder(root=data_dir, transform=DataHandler.transform())
     augmentedData = torchvision.datasets.ImageFolder(root=data_dir, transform=DataHandler.transform(augment=True))
 
@@ -182,11 +184,11 @@ if __name__ == "__main__":
     results = []
 
     processes = [
-        Process(train_batches[0], val_sets[0], 0, 0.001, 'model1.pth', 1, result_q, 5),   # Low LR, few epochs
-        Process(train_batches[1], val_sets[1], 1, 0.01, 'model2.pth', 2, result_q, 10),   # Default
-        Process(train_batches[2], val_sets[2], 2, 0.02, 'model3.pth', 3, result_q, 15),   # Higher LR, more epochs
-        Process(train_batches[3], val_sets[3], 3, 0.005, 'model4.pth', 4, result_q, 20),  # Very low LR, many epochs
-        Process(train_batches[4], val_sets[4], 4, 0.01, 'model5.pth', 5, result_q, 15)    # Default, higher epochs
+        Process(train_batches[0], val_sets[0], 0, 0.0008, 'model1.pth', 1, result_q, 20),   
+        Process(train_batches[1], val_sets[1], 1, 0.0001, 'model2.pth', 2, result_q, 20),  
+        Process(train_batches[2], val_sets[2], 2, 0.0005, 'model3.pth', 3, result_q, 20),   
+        Process(train_batches[3], val_sets[3], 3, 0.005, 'model4.pth', 4, result_q, 20),  
+        Process(train_batches[4], val_sets[4], 4, 0.001, 'model5.pth', 5, result_q, 20)    
     ]
 
     try:

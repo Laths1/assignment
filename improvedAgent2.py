@@ -29,9 +29,7 @@ class improvedAgent(Player):
         self.centreSquares = [chess.parse_square(sq) for sq in centreSquares]
         self.possibleBlackKing = [chess.parse_square(sq) for sq in possibleBlackKing]
         self.possibleWhiteKing = [chess.parse_square(sq) for sq in possibleWhiteKing]
-        self.castled = False
-
-
+        
     def handle_opponent_move_result(self, captured_my_piece, capture_square):
         self.my_piece_captured_square = capture_square
         if captured_my_piece:
@@ -97,8 +95,6 @@ class improvedAgent(Player):
             most_common_king_square = Counter(likely_king_squares).most_common(1)[0][0]
             if most_common_king_square in sense_actions:
                 return most_common_king_square
-
-        rand_val = random.random()
         if rand_val < 0.3:
             if self.color == chess.WHITE:
                 return random.choice([sq for sq in self.possibleBlackKing if sq in sense_actions])
@@ -164,7 +160,7 @@ class improvedAgent(Player):
     def choose_move(self, move_actions, seconds_left):
     # 1) Build a list of legal chess.Move objects
         if len(self.boards) > 10000:
-            self.boards = random.sample(self.boards, 10000)
+            self.boards = random.sample(self.boards, 1000)
         legal_moves = []
         for m in move_actions:
             try:
@@ -174,7 +170,7 @@ class improvedAgent(Player):
         if not legal_moves:
             return None
 
-        # 1) castle if we can
+        
       
         # 2) First pass: look for any direct capture of the opponent’s king
         enemy_king_square = self.board.king(not self.color)
@@ -213,21 +209,21 @@ class improvedAgent(Player):
                 if result.move in legal_moves:
                     suggestions.append(result.move)
             except chess.engine.EngineTerminatedError:
-                print("Stockfish crashed, attempting recovery...")
+                # print("Stockfish crashed, attempting recovery...")
                 self._restart_engine()
                 continue
             except Exception as e:
-                print(f"Error during Stockfish evaluation: {e}")
+                # print(f"Error during Stockfish evaluation: {e}")
                 continue
 
         if suggestions:
+            if seconds_left <10:
+                print("random engine")
+                return random.choice(suggestions)
             move = Counter(suggestions).most_common(1)[0][0]
             if move in legal_moves:
                 print("engine")
                 return move
-            print("random engine")
-            return random.choice(suggestions)
-
         # 4) Fallback to random legal move
         print("random")
         return random.choice(legal_moves)

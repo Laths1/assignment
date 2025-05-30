@@ -183,11 +183,10 @@ class MyAgent(Player):
                 continue
 
         if suggestions:
-            print("engine")
             return Counter(suggestions).most_common(1)[0][0]
 
         # 4) Fallback to random legal move
-        # return random.choice(legal_moves)
+        return random.choice(legal_moves)
 
 
 
