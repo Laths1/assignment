@@ -6,6 +6,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# hyperparameters
+d_model = 256
+num_heads = 4
+dropout = 0.1
+
 class WCST:
     
     def __init__(self, batch_size):
@@ -197,15 +203,64 @@ class SelfAttention(nn.Module):
         
 class MultiHeadAttention(nn.Module):
     def __init__(self):
-        pass
+        super().__init__()
+        assert d_model % num_heads == 0, "divisible"
+        self.d_model = d_model
+        self.h = num_heads
+        self.dh = d_model // num_heads
+        self.Wq = nn.Linear(d_model, d_model, bias=True)
+        self.Wk = nn.Linear(d_model, d_model, bias=True)
+        self.Wv = nn.Linear(d_model, d_model, bias=True)
+        self.Wo = nn.Linear(d_model, d_model, bias=True)
+        self.dropout = nn.Dropout(dropout)
 
-    def forward(self, query, key, value, mask=None):
-        pass
+        def shape(self, x: torch.Tensor) -> torch.Tensor:
+            B, T, _ = x.size()
+            return x.view(B, T, self.h, self.dh).transpose(1, 2)
+        
+        def mask(self, Tq: int, Tk: int, device) -> torch.Tensor:
+            i = torch.arange(Tq, device=device).unsqueeze(1)
+            j = torch.arange(Tk, device=device).unsqueeze(0)
+            return (j <= i)  
+
+
+    def forward(self,query: torch.Tensor, key: torch.Tensor,value: torch.Tensor, 
+                attn_mask: torch.Tensor = None,
+                 additive_mask: torch.Tensor = None,
+                     causal: bool = False,):
+        B, Tq, _ = query.size()
+        _, Tk, _ = key.size()
+
+        q = self._shape(self.Wq(query))   
+        k = self._shape(self.Wk(key))     
+        v = self._shape(self.Wv(value))   
+
+        attn_logits = torch.matmul(q, k.transpose(-2, -1)) / (self.dh ** 0.5) 
+
+        if causal:
+            assert Tq == Tk, "causal mask expects square (self-attn) lengths"
+            causal_keep = self._causal_mask(Tq, Tk, query.device)              
+            attn_logits = attn_logits.masked_fill(~causal_keep.unsqueeze(0).unsqueeze(0), float("-inf"))
+
+        if attn_mask is not None:
+            if attn_mask.dtype != torch.bool:
+                attn_mask = attn_mask.bool()
+            attn_logits = attn_logits.masked_fill(~attn_mask, float("-inf"))
+
+        if additive_mask is not None:
+            attn_logits = attn_logits + additive_mask  
+
+        attn_weights = torch.softmax(attn_logits, dim=-1)  
+        attn_weights = self.dropout(attn_weights)
+        context = torch.matmul(attn_weights, v)            
+
+        context = context.transpose(1, 2).contiguous().view(B, Tq, self.d_model)  
+        out = self.Wo(context)  
+        return out, attn_weights
 
 class FeedForward(nn.Module):
     def __init__(self, d_model, d_ff):
         super().__init__()
-        # define two linear layers here
 
     def forward(self, x):
         """
@@ -259,11 +314,55 @@ class Encoder(nn.Module):
         pass
 
 class Decoder(nn.Module):
-    def __init__(self):
-        pass
+    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
+        super().__init__()
+        self.ln_self = nn.LayerNorm(d_model)
+        self.self_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-    def forward(self, x, enc_out):
-        pass
+        self.ln_cross = nn.LayerNorm(d_model)
+        self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
+
+        self.drop = nn.Dropout(dropout)
+
+    def _expand_key_mask(self, pad_mask: torch.Tensor, Tq: int, heads: int) -> torch.Tensor:
+        
+        B, Tk = pad_mask.size()
+        keep = pad_mask.bool().unsqueeze(1).unsqueeze(2)        
+        keep = keep.expand(B, heads, Tq, Tk)                    
+        return keep
+
+    def forward(self, x, enc_out, tgt_pad=None, src_pad=None):
+        attn_maps = {}
+
+        B, T_tgt, _ = x.size()
+        self_keep = None
+        if tgt_pad is not None:
+            self_keep = self._expand_key_mask(tgt_pad, T_tgt, self.self_attn.h)
+
+        x_norm = self.ln_self(x)
+        self_out, self_w = self.self_attn(
+            query=x_norm, key=x_norm, value=x_norm,
+            attn_mask=self_keep,  
+            causal=True
+        )
+        x = x + self.drop(self_out)
+        attn_maps["self"] = self_w  
+
+        B, T_src, _ = enc_out.size()
+        cross_keep = None
+        if src_pad is not None:
+            cross_keep = self._expand_key_mask(src_pad, T_tgt, self.cross_attn.h)
+
+        x_norm = self.ln_cross(x)
+        cross_out, cross_w = self.cross_attn(
+            query=x_norm, key=enc_out, value=enc_out,
+            attn_mask=cross_keep,  
+            causal=False
+        )
+        x = x + self.drop(cross_out)
+        attn_maps["cross"] = cross_w  
+
+        return x, attn_maps
 
 class Transformer(nn.Module):
     def __init__(self,
