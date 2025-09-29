@@ -202,85 +202,81 @@ class SelfAttention(nn.Module):
         return output
         
 class MultiHeadAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, d_model, num_heads, dropout=0.1):
         super().__init__()
-        assert d_model % num_heads == 0, "divisible"
+        assert d_model % num_heads == 0
         self.d_model = d_model
         self.h = num_heads
         self.dh = d_model // num_heads
+
         self.Wq = nn.Linear(d_model, d_model, bias=True)
         self.Wk = nn.Linear(d_model, d_model, bias=True)
         self.Wv = nn.Linear(d_model, d_model, bias=True)
         self.Wo = nn.Linear(d_model, d_model, bias=True)
         self.dropout = nn.Dropout(dropout)
 
-        def shape(self, x: torch.Tensor) -> torch.Tensor:
-            B, T, _ = x.size()
-            return x.view(B, T, self.h, self.dh).transpose(1, 2)
-        
-        def mask(self, Tq: int, Tk: int, device) -> torch.Tensor:
-            i = torch.arange(Tq, device=device).unsqueeze(1)
-            j = torch.arange(Tk, device=device).unsqueeze(0)
-            return (j <= i)  
+    def _shape(self, x):
+        B, T, _ = x.size()
+        return x.view(B, T, self.h, self.dh).transpose(1, 2)
 
+    def _causal_mask(self, Tq, Tk, device):
+        i = torch.arange(Tq, device=device).unsqueeze(1)
+        j = torch.arange(Tk, device=device).unsqueeze(0)
+        return j <= i
 
-    def forward(self,query: torch.Tensor, key: torch.Tensor,value: torch.Tensor, 
-                attn_mask: torch.Tensor = None,
-                 additive_mask: torch.Tensor = None,
-                     causal: bool = False,):
+    def forward(self, query, key, value, attn_mask=None, additive_mask=None, causal=False):
         B, Tq, _ = query.size()
         _, Tk, _ = key.size()
 
-        q = self._shape(self.Wq(query))   
-        k = self._shape(self.Wk(key))     
-        v = self._shape(self.Wv(value))   
+        q = self._shape(self.Wq(query))
+        k = self._shape(self.Wk(key))
+        v = self._shape(self.Wv(value))
 
-        attn_logits = torch.matmul(q, k.transpose(-2, -1)) / (self.dh ** 0.5) 
+        attn_logits = torch.matmul(q, k.transpose(-2, -1)) / (self.dh ** 0.5)
 
         if causal:
-            assert Tq == Tk, "causal mask expects square (self-attn) lengths"
-            causal_keep = self._causal_mask(Tq, Tk, query.device)              
-            attn_logits = attn_logits.masked_fill(~causal_keep.unsqueeze(0).unsqueeze(0), float("-inf"))
+            causal_keep = self._causal_mask(Tq, Tk, query.device)
+            attn_logits = attn_logits.masked_fill(
+                ~causal_keep.unsqueeze(0).unsqueeze(0),
+                float('-inf')
+            )
 
         if attn_mask is not None:
-            if attn_mask.dtype != torch.bool:
-                attn_mask = attn_mask.bool()
-            attn_logits = attn_logits.masked_fill(~attn_mask, float("-inf"))
+            attn_mask = attn_mask.bool().unsqueeze(1).unsqueeze(2)
+            attn_logits = attn_logits.masked_fill(~attn_mask, float('-inf'))
 
         if additive_mask is not None:
-            attn_logits = attn_logits + additive_mask  
+            attn_logits = attn_logits + additive_mask
 
-        attn_weights = torch.softmax(attn_logits, dim=-1)  
+        attn_weights = torch.softmax(attn_logits, dim=-1)
         attn_weights = self.dropout(attn_weights)
-        context = torch.matmul(attn_weights, v)            
+        context = torch.matmul(attn_weights, v)
 
-        context = context.transpose(1, 2).contiguous().view(B, Tq, self.d_model)  
-        out = self.Wo(context)  
+        context = context.transpose(1, 2).contiguous().view(B, Tq, self.d_model)
+        out = self.Wo(context)
         return out, attn_weights
 
+###########
+# Elelwani
+###########
 class FeedForward(nn.Module):
-    def __init__(self, d_model, d_ff):
+    def __init__(self):
         super().__init__()
 
     def forward(self, x):
-        """
-        x: [batch, seq_len, d_model]
-        returns: [batch, seq_len, d_model]
-        """
         pass
 
 class Embedding(nn.Module):
-    def __init__(self):
-        """
-        Args:
-       
-            
-        returns: [embeddings] as tensor
-        """
-        pass
+    def __init__(self, vocab_size: int, d_model: int):
+        super().__init__()
+        self.d_model = d_model
+        self.token_embedding = nn.Embedding(vocab_size, d_model)
 
     def forward(self, x):
-        pass
+        embeddings = self.token_embedding(x) * torch.sqrt(
+            torch.tensor(self.d_model, dtype=torch.float32, device=x.device)
+        )
+        return embeddings
 
 class PositionalEncoder:
     """
@@ -322,6 +318,10 @@ class Decoder(nn.Module):
         self.ln_cross = nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
+        # Feed forward - finish when Feed forward has been completed
+        self.ln_ff = nn.LayerNorm(d_model)
+        self.ff = FeedForward()
+
         self.drop = nn.Dropout(dropout)
 
     def _expand_key_mask(self, pad_mask: torch.Tensor, Tq: int, heads: int) -> torch.Tensor:
@@ -361,6 +361,11 @@ class Decoder(nn.Module):
         )
         x = x + self.drop(cross_out)
         attn_maps["cross"] = cross_w  
+
+        # Feed forward
+        x_norm = self.ln_ff(x)
+        ff_out = self.ff(x_norm)
+        x = x + self.drop(ff_out)
 
         return x, attn_maps
 
