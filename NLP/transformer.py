@@ -1,5 +1,7 @@
 """
 This file contains the implementation of the Transformer FeedForward and it's integrated with Decoder
+Classes have been added to this file for cluster training.
+Also Lockdown is a transformer.
 """
 import numpy as np
 import torch
@@ -256,7 +258,7 @@ class MultiHeadAttention(nn.Module):
         return out, attn_weights
 
 ###########
-# FF
+# Integrate Feed Forward
 ###########
 class FeedForward(nn.Module):
     """
@@ -368,3 +370,64 @@ class Decoder(nn.Module):
             attn_mask=self_keep,  
             causal=True
         )
+        x = x + self.drop(self_out)
+        attn_maps["self"] = self_w  
+
+        B, T_src, _ = enc_out.size()
+        cross_keep = None
+        if src_pad is not None:
+            cross_keep = self._expand_key_mask(src_pad, T_tgt, self.cross_attn.h)
+
+        x_norm = self.ln_cross(x)
+        cross_out, cross_w = self.cross_attn(
+            query=x_norm, key=enc_out, value=enc_out,
+            attn_mask=cross_keep,  
+            causal=False
+        )
+        x = x + self.drop(cross_out)
+        attn_maps["cross"] = cross_w  
+
+        # Feed forward
+        x_norm = self.ln_ff(x)
+        ff_out = self.ff(x_norm)
+        x = x + self.drop(ff_out)
+
+        return x, attn_maps
+
+class Transformer(nn.Module):
+    def __init__(self,
+                 num_encoder_layers,
+                 num_decoder_layers,
+                 d_model,
+                 num_heads,
+                 d_ff,
+                 src_vocab_size,
+                 tgt_vocab_size,
+                 max_len=5000):
+        super().__init__()
+        # Encoder
+        # Decoder
+        # Final linear layer to project to target vocab
+        # output
+
+    def forward(self, src, tgt, src_mask=None, tgt_mask=None):
+        """
+        src: [batch, src_seq_len]
+        tgt: [batch, tgt_seq_len]
+        returns: logits over target vocab [batch, tgt_seq_len, vocab_size]
+        """
+        pass
+
+if __name__ == "__main__":
+    data = Dataset_Loader(training_batch=10,
+                          classification_batch=2,
+                            train_split=0.8,
+                            val_split=0.10,
+                            test_split=0.10,
+                            context_switch_interval=2)
+    train_data, val_data, test_data = data.load_data()
+
+    positional_encodings = PositionalEncoder.encode(
+        input_seq=train_data[0][0], model_dim=10)
+    print("Positional Encodings Shape: ", positional_encodings.shape)
+    print("positional encodings: ", positional_encodings[0])
