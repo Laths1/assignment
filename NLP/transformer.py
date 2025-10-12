@@ -1,4 +1,5 @@
 """
+This file contains the implementation of the Transformer FeedForward and it's integrated with Decoder
 Classes have been added to this file for cluster training.
 Also Lockdown is a transformer.
 """
@@ -257,14 +258,38 @@ class MultiHeadAttention(nn.Module):
         return out, attn_weights
 
 ###########
-# Elelwani
+# Integrate Feed Forward
 ###########
 class FeedForward(nn.Module):
-    def __init__(self):
+    """
+    Position-wise feed-forward network used inside Transformer blocks.
+    Applies the same MLP to every time step independently: d_model -> d_ff -> d_model.
+    """
+    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.1, activation: str = "gelu"):
         super().__init__()
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.fc2 = nn.Linear(d_ff, d_model)
+        self.drop = nn.Dropout(dropout)
 
-    def forward(self, x):
-        pass
+        if activation.lower() == "gelu":
+            self.act = nn.GELU()
+        elif activation.lower() == "relu":
+            self.act = nn.ReLU()
+        else:
+            raise ValueError(f"Unsupported activation: {activation}")
+
+        # Good default initialization
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.zeros_(self.fc2.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        return x
 
 class Embedding(nn.Module):
     def __init__(self, vocab_size: int, d_model: int):
@@ -318,9 +343,9 @@ class Decoder(nn.Module):
         self.ln_cross = nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-        # Feed forward - finish when Feed forward has been completed
+        # Feed forward (uses 4 * d_model by default, GELU activation)
         self.ln_ff = nn.LayerNorm(d_model)
-        self.ff = FeedForward()
+        self.ff = FeedForward(d_model=d_model, d_ff=4 * d_model, dropout=dropout, activation="gelu")
 
         self.drop = nn.Dropout(dropout)
 
