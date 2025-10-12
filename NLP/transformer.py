@@ -1,6 +1,5 @@
 """
-Classes have been added to this file for cluster training.
-Also Lockdown is a transformer.
+This file contains the implementation of the Transformer FeedForward and it's integrated with Decoder
 """
 import numpy as np
 import torch
@@ -257,14 +256,38 @@ class MultiHeadAttention(nn.Module):
         return out, attn_weights
 
 ###########
-# Elelwani
+# FF
 ###########
 class FeedForward(nn.Module):
-    def __init__(self):
+    """
+    Position-wise feed-forward network used inside Transformer blocks.
+    Applies the same MLP to every time step independently: d_model -> d_ff -> d_model.
+    """
+    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.1, activation: str = "gelu"):
         super().__init__()
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.fc2 = nn.Linear(d_ff, d_model)
+        self.drop = nn.Dropout(dropout)
 
-    def forward(self, x):
-        pass
+        if activation.lower() == "gelu":
+            self.act = nn.GELU()
+        elif activation.lower() == "relu":
+            self.act = nn.ReLU()
+        else:
+            raise ValueError(f"Unsupported activation: {activation}")
+
+        # Good default initialization
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.zeros_(self.fc2.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        return x
 
 class Embedding(nn.Module):
     def __init__(self, vocab_size: int, d_model: int):
@@ -318,9 +341,9 @@ class Decoder(nn.Module):
         self.ln_cross = nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-        # Feed forward - finish when Feed forward has been completed
+        # Feed forward (uses 4 * d_model by default, GELU activation)
         self.ln_ff = nn.LayerNorm(d_model)
-        self.ff = FeedForward()
+        self.ff = FeedForward(d_model=d_model, d_ff=4 * d_model, dropout=dropout, activation="gelu")
 
         self.drop = nn.Dropout(dropout)
 
@@ -345,64 +368,3 @@ class Decoder(nn.Module):
             attn_mask=self_keep,  
             causal=True
         )
-        x = x + self.drop(self_out)
-        attn_maps["self"] = self_w  
-
-        B, T_src, _ = enc_out.size()
-        cross_keep = None
-        if src_pad is not None:
-            cross_keep = self._expand_key_mask(src_pad, T_tgt, self.cross_attn.h)
-
-        x_norm = self.ln_cross(x)
-        cross_out, cross_w = self.cross_attn(
-            query=x_norm, key=enc_out, value=enc_out,
-            attn_mask=cross_keep,  
-            causal=False
-        )
-        x = x + self.drop(cross_out)
-        attn_maps["cross"] = cross_w  
-
-        # Feed forward
-        x_norm = self.ln_ff(x)
-        ff_out = self.ff(x_norm)
-        x = x + self.drop(ff_out)
-
-        return x, attn_maps
-
-class Transformer(nn.Module):
-    def __init__(self,
-                 num_encoder_layers,
-                 num_decoder_layers,
-                 d_model,
-                 num_heads,
-                 d_ff,
-                 src_vocab_size,
-                 tgt_vocab_size,
-                 max_len=5000):
-        super().__init__()
-        # Encoder
-        # Decoder
-        # Final linear layer to project to target vocab
-        # output
-
-    def forward(self, src, tgt, src_mask=None, tgt_mask=None):
-        """
-        src: [batch, src_seq_len]
-        tgt: [batch, tgt_seq_len]
-        returns: logits over target vocab [batch, tgt_seq_len, vocab_size]
-        """
-        pass
-
-if __name__ == "__main__":
-    data = Dataset_Loader(training_batch=10,
-                          classification_batch=2,
-                            train_split=0.8,
-                            val_split=0.10,
-                            test_split=0.10,
-                            context_switch_interval=2)
-    train_data, val_data, test_data = data.load_data()
-
-    positional_encodings = PositionalEncoder.encode(
-        input_seq=train_data[0][0], model_dim=10)
-    print("Positional Encodings Shape: ", positional_encodings.shape)
-    print("positional encodings: ", positional_encodings[0])
