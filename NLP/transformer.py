@@ -6,8 +6,13 @@ Also Lockdown is a transformer.
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+import time
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+print("Using device:", device)
 # hyperparameters
 d_model = 256
 num_heads = 4
@@ -328,23 +333,52 @@ class PositionalEncoder:
         return torch.tensor(pe, dtype=torch.float32)
   
 class Encoder(nn.Module):
-    def __init__(self):
-        pass
+    def __init__(self, num_layers: int, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
+        super().__init__()
+        self.layers = nn.ModuleList([
+            EncoderLayer(d_model, num_heads, d_ff, dropout)
+            for _ in range(num_layers)
+        ])
+        self.norm = nn.LayerNorm(d_model) # replace with custom normalization
+        
+    def forward(self, x, mask=None):
+        for layer in self.layers:
+            x = layer(x, mask)
+        return self.norm(x)
 
-    def forward(self, x):
-        pass
+class EncoderLayer(nn.Module):
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
+        super().__init__()
+        self.self_attn = MultiHeadAttention(d_model, num_heads, dropout)
+        self.ff = FeedForward(d_model, d_ff, dropout)
+        self.norm1 = nn.LayerNorm(d_model) # replace with custom normalization
+        self.norm2 = nn.LayerNorm(d_model) # replace with custom normalization
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x, mask=None):
+        # Self attention
+        attn_out, _ = self.self_attn(x, x, x, attn_mask=mask)
+        x = x + self.dropout(attn_out)
+        x = self.norm1(x)
+        
+        # Feed forward
+        ff_out = self.ff(x)
+        x = x + self.dropout(ff_out)
+        x = self.norm2(x)
+        
+        return x
 
 class Decoder(nn.Module):
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
-        self.ln_self = nn.LayerNorm(d_model)
+        self.ln_self = nn.LayerNorm(d_model) # replace with custom normalization
         self.self_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-        self.ln_cross = nn.LayerNorm(d_model)
+        self.ln_cross = nn.LayerNorm(d_model) # replace with custom normalization
         self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
         # Feed forward (uses 4 * d_model by default, GELU activation)
-        self.ln_ff = nn.LayerNorm(d_model)
+        self.ln_ff = nn.LayerNorm(d_model) # replace with custom normalization
         self.ff = FeedForward(d_model=d_model, d_ff=4 * d_model, dropout=dropout, activation="gelu")
 
         self.drop = nn.Dropout(dropout)
@@ -394,6 +428,7 @@ class Decoder(nn.Module):
 
         return x, attn_maps
 
+
 class Transformer(nn.Module):
     def __init__(self,
                  num_encoder_layers,
@@ -403,31 +438,326 @@ class Transformer(nn.Module):
                  d_ff,
                  src_vocab_size,
                  tgt_vocab_size,
-                 max_len=5000):
+                 max_len=5000,
+                 dropout=0.1):
         super().__init__()
-        # Encoder
-        # Decoder
-        # Final linear layer to project to target vocab
-        # output
+
+        # Embeddings
+        self.src_embedding = Embedding(src_vocab_size, d_model)
+        self.tgt_embedding = Embedding(tgt_vocab_size, d_model)
+
+        # Encoder/Decoder stacks
+        self.encoder = Encoder(num_encoder_layers, d_model, num_heads, d_ff, dropout)
+        self.decoders = nn.ModuleList([
+            Decoder(d_model, num_heads, dropout)
+            for _ in range(num_decoder_layers)
+        ])
+
+        # Output projection to target vocab
+        self.fc_out = nn.Linear(d_model, tgt_vocab_size)
+
+        # Positional encoding
+        self.max_len = max_len
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
         """
         src: [batch, src_seq_len]
         tgt: [batch, tgt_seq_len]
-        returns: logits over target vocab [batch, tgt_seq_len, vocab_size]
+        returns: logits over target vocab [batch, tgt_seq_len, tgt_vocab_size]
         """
-        pass
+
+        # ----- ENCODER -----
+        src_embed = self.src_embedding(src)
+        src_pe = PositionalEncoder.encode(src, src_embed.shape[-1]).to(src.device)
+        src_embed = self.dropout(src_embed + src_pe)
+        enc_out = self.encoder(src_embed, src_mask)
+
+        # ----- DECODER -----
+        tgt_embed = self.tgt_embedding(tgt)
+        tgt_pe = PositionalEncoder.encode(tgt, tgt_embed.shape[-1]).to(tgt.device)
+        tgt_embed = self.dropout(tgt_embed + tgt_pe)
+
+        x = tgt_embed
+        attn_maps_all = []
+
+        for decoder in self.decoders:
+            x, attn_maps = decoder(x, enc_out, tgt_pad=tgt_mask, src_pad=src_mask)
+            attn_maps_all.append(attn_maps)
+
+        logits = self.fc_out(x)
+        return logits, attn_maps_all
+
+class Trainer:
+    def __init__(self, model, train_data, val_data, test_data, lr=0.001, batch_size=32):
+        self.model = model
+        self.train_data = self._prepare_data(train_data)
+        self.val_data = self._prepare_data(val_data)
+        self.test_data = self._prepare_data(test_data)
+        self.batch_size = batch_size
+        
+        self.optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
+        self.criterion = nn.CrossEntropyLoss(ignore_index=-100)
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=5)
+        
+        self.train_losses = []
+        self.val_losses = []
+        self.val_accuracies = []
+        
+    def _prepare_data(self, data):
+        """Convert list of (input, target) pairs to proper tensors"""
+        inputs = np.vstack([d[0] for d in data])
+        targets = np.vstack([d[1] for d in data])
+        return TensorDataset(
+            torch.tensor(inputs, dtype=torch.long),
+            torch.tensor(targets, dtype=torch.long)
+        )
+    
+    def create_masks(self, src, tgt):
+        """Create masks for transformer (simplified version)"""
+        # For this WCST task, we might not need complex masking since sequences are fixed
+        src_mask = None
+        tgt_mask = None
+        return src_mask, tgt_mask
+    
+    def train_epoch(self):
+        self.model.train()
+        total_loss = 0
+        correct = 0
+        total = 0
+        
+        train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
+        
+        for src, tgt in tqdm(train_loader, desc="Training"):
+            src, tgt = src.to(device), tgt.to(device)
+            
+            # Teacher forcing: use tgt[:-1] as input, predict tgt[1:]
+            tgt_input = tgt[:, :-1]
+            tgt_output = tgt[:, 1:]
+            
+            self.optimizer.zero_grad()
+            
+            logits, _ = self.model(src, tgt_input)
+            
+            # Calculate loss - only compare with the actual next tokens
+            loss = self.criterion(logits.reshape(-1, logits.size(-1)), 
+                                tgt_output.reshape(-1))
+            
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            self.optimizer.step()
+            
+            total_loss += loss.item()
+            
+            # Calculate accuracy for the last token (the actual prediction)
+            preds = torch.argmax(logits[:, -1, :], dim=-1)
+            correct += (preds == tgt[:, -1]).sum().item()
+            total += preds.size(0)
+        
+        avg_loss = total_loss / len(train_loader)
+        accuracy = correct / total if total > 0 else 0
+        return avg_loss, accuracy
+    
+    def validate(self):
+        self.model.eval()
+        total_loss = 0
+        correct = 0
+        total = 0
+        
+        val_loader = DataLoader(self.val_data, batch_size=self.batch_size)
+        
+        with torch.no_grad():
+            for src, tgt in val_loader:
+                src, tgt = src.to(device), tgt.to(device)
+                
+                tgt_input = tgt[:, :-1]
+                tgt_output = tgt[:, 1:]
+                
+                logits, _ = self.model(src, tgt_input)
+                
+                loss = self.criterion(logits.reshape(-1, logits.size(-1)), 
+                                    tgt_output.reshape(-1))
+                
+                total_loss += loss.item()
+                
+                preds = torch.argmax(logits[:, -1, :], dim=-1)
+                correct += (preds == tgt[:, -1]).sum().item()
+                total += preds.size(0)
+        
+        avg_loss = total_loss / len(val_loader)
+        accuracy = correct / total if total > 0 else 0
+        return avg_loss, accuracy
+    
+    def test(self):
+        self.model.eval()
+        correct = 0
+        total = 0
+        
+        test_loader = DataLoader(self.test_data, batch_size=self.batch_size)
+        
+        with torch.no_grad():
+            for src, tgt in test_loader:
+                src, tgt = src.to(device), tgt.to(device)
+                
+                tgt_input = tgt[:, :-1]
+                logits, _ = self.model(src, tgt_input)
+                
+                preds = torch.argmax(logits[:, -1, :], dim=-1)
+                correct += (preds == tgt[:, -1]).sum().item()
+                total += preds.size(0)
+        
+        accuracy = correct / total if total > 0 else 0
+        return accuracy
+    
+    def train(self, epochs=50, early_stopping_patience=10):
+        best_val_loss = float('inf')
+        patience_counter = 0
+        
+        print("Starting training...")
+        for epoch in range(epochs):
+            start_time = time.time()
+            
+            # Training
+            train_loss, train_acc = self.train_epoch()
+            
+            # Validation
+            val_loss, val_acc = self.validate()
+            
+            # Learning rate scheduling
+            self.scheduler.step(val_loss)
+            
+            # Record metrics
+            self.train_losses.append(train_loss)
+            self.val_losses.append(val_loss)
+            self.val_accuracies.append(val_acc)
+            
+            epoch_time = time.time() - start_time
+            
+            print(f"Epoch {epoch+1}/{epochs} | Time: {epoch_time:.2f}s")
+            print(f"  Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}")
+            print(f"  Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}")
+            print(f"  LR: {self.optimizer.param_groups[0]['lr']:.6f}")
+            
+            # Early stopping
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                patience_counter = 0
+                # Save best model
+                torch.save(self.model.state_dict(), 'best_transformer_wcst.pth')
+            else:
+                patience_counter += 1
+                
+            if patience_counter >= early_stopping_patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+        
+        # Load best model for final testing
+        self.model.load_state_dict(torch.load('best_transformer_wcst.pth'))
+        
+        # Final test
+        test_acc = self.test()
+        print(f"\nFinal Test Accuracy: {test_acc:.4f}")
+        
+        self.plot_training()
+    
+    def plot_training(self):
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(self.train_losses, label='Train Loss')
+        plt.plot(self.val_losses, label='Val Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.title('Training and Validation Loss')
+        
+        plt.subplot(1, 2, 2)
+        plt.plot(self.val_accuracies, label='Val Accuracy', color='green')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.title('Validation Accuracy')
+        
+        plt.tight_layout()
+        plt.savefig('training_curves.png')
+        plt.show()
 
 if __name__ == "__main__":
-    data = Dataset_Loader(training_batch=10,
-                          classification_batch=2,
-                            train_split=0.8,
-                            val_split=0.10,
-                            test_split=0.10,
-                            context_switch_interval=2)
-    train_data, val_data, test_data = data.load_data()
-
-    positional_encodings = PositionalEncoder.encode(
-        input_seq=train_data[0][0], model_dim=10)
-    print("Positional Encodings Shape: ", positional_encodings.shape)
-    print("positional encodings: ", positional_encodings[0])
+    # Hyperparameters
+    training_batch = 10000  # Total number of training examples
+    classification_batch = 32  # Batch size for data generation
+    train_split = 0.7
+    val_split = 0.15
+    test_split = 0.15
+    context_switch_interval = 100
+    
+    # Model parameters
+    vocab_size = 70
+    d_model = 256
+    num_heads = 8
+    num_encoder_layers = 3
+    num_decoder_layers = 3
+    d_ff = 1024
+    dropout = 0.1
+    
+    # Training parameters
+    batch_size = 64
+    learning_rate = 0.0001
+    epochs = 10
+    
+    print("Loading dataset...")
+    # Build Dataset
+    data_loader = Dataset_Loader(
+        training_batch=training_batch,
+        classification_batch=classification_batch,
+        train_split=train_split,
+        val_split=val_split,
+        test_split=test_split,
+        context_switch_interval=context_switch_interval
+    )
+    train_data, val_data, test_data = data_loader.load_data()
+    
+    print(f"Dataset sizes - Train: {len(train_data)}, Val: {len(val_data)}, Test: {len(test_data)}")
+    
+    # Build Model
+    print("Building model...")
+    model = Transformer(
+        num_encoder_layers=num_encoder_layers,
+        num_decoder_layers=num_decoder_layers,
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        src_vocab_size=vocab_size,
+        tgt_vocab_size=vocab_size,
+        dropout=dropout
+    ).to(device)
+    
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+    
+    # Initialize trainer
+    trainer = Trainer(
+        model=model,
+        train_data=train_data,
+        val_data=val_data,
+        test_data=test_data,
+        lr=learning_rate,
+        batch_size=batch_size
+    )
+    
+    # Start training
+    trainer.train(epochs=epochs)
+    
+    # Test on a few examples
+    print("\nTesting on a few examples:")
+    test_loader = DataLoader(trainer.test_data, batch_size=5, shuffle=True)
+    src, tgt = next(iter(test_loader))
+    src, tgt = src.to(device), tgt.to(device)
+    
+    with torch.no_grad():
+        tgt_input = tgt[:, :-1]
+        logits, _ = model(src, tgt_input)
+        preds = torch.argmax(logits[:, -1, :], dim=-1)
+        
+        print("Predictions vs Targets:")
+        for i in range(min(5, src.size(0))):
+            print(f"  Example {i+1}: Predicted {preds[i].item()}, Target {tgt[i, -1].item()}")
