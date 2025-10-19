@@ -694,16 +694,16 @@ if __name__ == "__main__":
     # Model parameters
     vocab_size = 70
     d_model = 256
-    num_heads = 8
-    num_encoder_layers = 3
-    num_decoder_layers = 3
+    num_heads = 16
+    num_encoder_layers = 6
+    num_decoder_layers = 2
     d_ff = 1024
     dropout = 0.1
     
     # Training parameters
     batch_size = 64
     learning_rate = 0.0001
-    epochs = 10
+    epochs = 20
     
     print("Loading dataset...")
     # Build Dataset
