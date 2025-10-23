@@ -11,12 +11,11 @@ from torch.utils.data import DataLoader, TensorDataset
 import time
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import seaborn as sns
+import pandas as pd
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
-# hyperparameters
-d_model = 256
-num_heads = 4
-dropout = 0.1
 
 class WCST:
     
@@ -25,7 +24,7 @@ class WCST:
         self.shapes = ['circle','square','star','cross']
         self.quantities = ['1','2','3','4']
         self.categories = ['C1','C2','C3','C4']
-        self.category_feature = np.random.choice([0,1,2])
+        self.category_feature = np.random.choice([0])
         self.gen_deck()
         self.batch_size = batch_size
 
@@ -86,6 +85,26 @@ class WCST:
             print(trial_cards)
         print("Feature for Classification: ", self.category_feature, "\n")
         return trials
+
+    def get_card_features(self, card_index):
+        # Card index runs from 0 to 63.
+        # Feature mapping: 
+        # Colour: 0, Shape: 1, Quantity: 2
+            
+        if card_index < 0 or card_index >= 64:
+            raise ValueError("Index must be between 0 and 63 for a card.")
+
+        # Quantity (varies every 4^0 = 1 index) - Feature 2
+        quantity_value = card_index % 4 
+            
+        # Shape (varies every 4^1 = 4 indices) - Feature 1
+        shape_value = (card_index // 4) % 4
+            
+        # Colour (varies every 4^2 = 16 indices) - Feature 0
+        colour_value = (card_index // 16) % 4
+            
+        # Returns (Colour_Value, Shape_Value, Quantity_Value)
+        return (colour_value, shape_value, quantity_value)
 
 class Dataset_Loader:
     def __init__(self, training_batch, classification_batch, train_split, val_split, test_split, context_switch_interval):
@@ -161,6 +180,145 @@ class Dataset_Loader:
         c3 = fill_dataset(n_test, test_data, start_count=c1+c2)
 
         return train_data, val_data, test_data
+class RuleDetector:
+    def __init__(self, model, test_data, wcst_env, batch_size=32):
+        self.model = model
+        self.model.eval()
+        self.test_loader = DataLoader(self._prepare_data(test_data), batch_size=batch_size)
+        self.wcst_env = wcst_env
+        self.num_heads = model.decoders[0].cross_attn.h
+        self.num_layers = len(model.decoders)
+        self.features = ['Colour', 'Shape', 'Quantity']
+
+    def _prepare_data(self, data):
+        inputs = np.vstack([d[0] for d in data])
+        targets = np.vstack([d[1] for d in data])
+        return TensorDataset(
+            torch.tensor(inputs, dtype=torch.long),
+            torch.tensor(targets, dtype=torch.long)
+        )
+
+    def _get_match_positions(self, src_batch):
+        match_positions_batch = []
+
+        CAT_CARD_POSITIONS = torch.arange(4) 
+        
+        for i in range(src_batch.size(0)):
+            src_i = src_batch[i].cpu().numpy()
+
+            example_card_idx = src_i[4] 
+
+            example_features = self.wcst_env.get_card_features(example_card_idx)
+
+            match_indices = {'Colour': [], 'Shape': [], 'Quantity': []}
+
+            for pos in CAT_CARD_POSITIONS:
+                cat_card_idx = src_i[pos]
+                cat_features = self.wcst_env.get_card_features(cat_card_idx)
+                
+                if cat_features[0] == example_features[0]: # Colour match
+                    match_indices['Colour'].append(pos.item())
+                if cat_features[1] == example_features[1]: # Shape match
+                    match_indices['Shape'].append(pos.item())
+                if cat_features[2] == example_features[2]: # Quantity match
+                    match_indices['Quantity'].append(pos.item())
+            
+            match_positions_batch.append(match_indices)
+        return match_positions_batch
+
+    def analyze_attention(self):
+        head_feature_scores = {
+            (layer, head): {'Colour': 0.0, 'Shape': 0.0, 'Quantity': 0.0, 'Count': 0}
+            for layer in range(self.num_layers)
+            for head in range(self.num_heads)
+        }
+        
+        with torch.no_grad():
+            for src, tgt in self.test_loader:
+                src, tgt = src.to(device), tgt.to(device)
+                tgt_input = tgt[:, :-1]
+
+                _, attn_maps_all = self.model(src, tgt_input)
+
+                batch_match_positions = self._get_match_positions(src)
+                
+                for layer_idx, attn_maps in enumerate(attn_maps_all):
+                    
+                    cross_w = attn_maps["cross"] 
+
+                    cross_attention_final_query = cross_w[:, :, -1, :] 
+                    
+                    for batch_idx in range(src.size(0)):
+                        attn_batch = cross_attention_final_query[batch_idx] # (H, T_src)
+                        match_pos = batch_match_positions[batch_idx]
+                        
+                        for feature_key in self.features:
+                            positions = match_pos[feature_key]
+                            
+                            if not positions:
+                                continue 
+
+                            attn_sum = attn_batch[:, positions].sum(dim=-1) 
+                            
+                            for head_idx in range(self.num_heads):
+                                key = (layer_idx, head_idx)
+                                head_feature_scores[key][feature_key] += attn_sum[head_idx].item()
+                                head_feature_scores[key]['Count'] += 1
+
+        average_scores = {}
+        for key, data in head_feature_scores.items():
+            if data['Count'] > 0:
+                average_scores[key] = {
+                    f: data[f] / data['Count']
+                    for f in self.features
+                }
+            else:
+                average_scores[key] = {f: 0.0 for f in self.features}
+                
+        return average_scores
+
+    def visualize_specialization(self, average_scores):
+
+        
+        all_data = []
+        for (layer, head), scores in average_scores.items():
+            for feature, score in scores.items():
+                all_data.append({
+                    'Layer': f'L{layer}', 
+                    'Head': head, 
+                    'Feature': feature, 
+                    'Attention_Score': score
+                })
+                
+        df = pd.DataFrame(all_data)
+
+        fig, axes = plt.subplots(self.num_layers, 1, figsize=(10, 3 * self.num_layers), sharex=True)
+        
+        if self.num_layers == 1:
+            axes = [axes] 
+
+        for layer_idx, ax in enumerate(axes):
+            layer_df = df[df['Layer'] == f'L{layer_idx}']
+            pivot_table = layer_df.pivot_table(
+                index='Head', 
+                columns='Feature', 
+                values='Attention_Score'
+            )
+            
+            sns.heatmap(
+                pivot_table, 
+                annot=True, 
+                fmt=".3f", 
+                cmap="YlGnBu", 
+                cbar_kws={'label': 'Average Attention Score'},
+                ax=ax
+            )
+            ax.set_title(f'Decoder Cross-Attention Specialization - Layer {layer_idx}')
+            ax.set_ylabel('Head Index')
+            
+        plt.tight_layout()
+        plt.savefig('all_attention.png')
+        plt.show()
 
 class SelfAttention(nn.Module):
     """
@@ -684,17 +842,17 @@ class Trainer:
 
 if __name__ == "__main__":
     # Hyperparameters
-    training_batch = 10000  # Total number of training examples
-    classification_batch = 32  # Batch size for data generation
+    training_batch = 100000  # Total number of training examples
+    classification_batch = 1000  # Batch size for data generation
     train_split = 0.7
     val_split = 0.15
     test_split = 0.15
-    context_switch_interval = 100
+    context_switch_interval = 1000000
     
     # Model parameters
     vocab_size = 70
-    d_model = 256
-    num_heads = 16
+    d_model = 128
+    num_heads = 4
     num_encoder_layers = 6
     num_decoder_layers = 2
     d_ff = 1024
@@ -702,7 +860,7 @@ if __name__ == "__main__":
     
     # Training parameters
     batch_size = 64
-    learning_rate = 0.0001
+    learning_rate = 0.001
     epochs = 20
     
     print("Loading dataset...")
@@ -761,3 +919,30 @@ if __name__ == "__main__":
         print("Predictions vs Targets:")
         for i in range(min(5, src.size(0))):
             print(f"  Example {i+1}: Predicted {preds[i].item()}, Target {tgt[i, -1].item()}")
+
+    trainer.model.load_state_dict(torch.load('best_transformer_wcst.pth'))
+    wcst_env = WCST(classification_batch) 
+
+    test_wcst_env = WCST(classification_batch) 
+
+
+    _, _, interpret_test_data = data_loader.load_data()
+
+    detector = RuleDetector(
+        model=model, 
+        test_data=interpret_test_data, 
+        wcst_env=test_wcst_env, 
+        batch_size=32
+    )
+
+    print("Analyzing attention head specialization...")
+    avg_scores = detector.analyze_attention()
+    
+    print("\nFeature Attention Scores per Head (Average Attention to Matching Card Positions):")
+    for (layer, head), scores in avg_scores.items():
+        # Print the score and identify the specialized feature
+        specialized_feature = max(scores, key=scores.get)
+        print(f"L{layer} H{head}: C:{scores['Colour']:.4f} | S:{scores['Shape']:.4f} | Q:{scores['Quantity']:.4f} -> Specialized: {specialized_feature}")
+        
+    print("\nGenerating heatmap visualization...")
+    detector.visualize_specialization(avg_scores)
