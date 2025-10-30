@@ -1,0 +1,152 @@
+Here is a minimal, correct PyTorch transformer model for the WCST task, with proper training and validation steps. This code is designed for sequence classification (predicting the category token after the sep), assuming your batch generator outputs input_ids and labels with correct batch alignment:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class WCSTTransformer(nn.Module):
+    def __init__(self, vocab_size=70, d_model=128, nhead=2, num_layers=2, max_len=70):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.pos_embedding = nn.Parameter(torch.randn(1, max_len, d_model))
+        encoder_layer = nn.TransformerEncoderLayer(d_model, nhead)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers)
+        self.output = nn.Linear(d_model, 4)  # 4 category tokens
+
+    def forward(self, x):
+        x = self.embedding(x) + self.pos_embedding[:, :x.shape[1], :]
+        hidden = self.transformer(x)
+        # output: take the position index just after sep (last token before EOS, or specify index)
+        sep_idx = (x == 68).argmax(dim=1) + 1
+        # batch gather: for each sample, get hidden at sep+1 (category prediction)
+        gather = torch.stack([hidden[i, idx] for i, idx in enumerate(sep_idx)])
+        return self.output(gather)
+
+# Loss and accuracy for only the predicted category token
+def category_loss_acc(pred_logits, labels):
+    loss_fn = nn.CrossEntropyLoss()
+    loss = loss_fn(pred_logits, labels)
+    preds = pred_logits.argmax(-1)
+    acc = (preds == labels).float().mean()
+    return loss, acc
+
+# Training loop (minimal)
+def train_epoch(model, dataloader, optimizer):
+    model.train()
+    all_loss, all_acc = 0, 0
+    for batch in dataloader:
+        optimizer.zero_grad()
+        input_ids, labels = batch['input_ids'], batch['category_labels']
+        logits = model(input_ids)
+        loss, acc = category_loss_acc(logits, labels)
+        loss.backward()
+        optimizer.step()
+        all_loss += loss.item()
+        all_acc += acc.item()
+    print(f"Train loss: {all_loss / len(dataloader):.4f}, Acc: {all_acc / len(dataloader):.4f}")
+
+def val_epoch(model, dataloader):
+    model.eval()
+    all_loss, all_acc = 0, 0
+    with torch.no_grad():
+        for batch in dataloader:
+            input_ids, labels = batch['input_ids'], batch['category_labels']
+            logits = model(input_ids)
+            loss, acc = category_loss_acc(logits, labels)
+            all_loss += loss.item()
+            all_acc += acc.item()
+    print(f"Val loss: {all_loss / len(dataloader):.4f}, Acc: {all_acc / len(dataloader):.4f}")
+
+# Sample usage (assuming you have correct dataloaders)
+model = WCSTTransformer()
+optimizer = optim.Adam(model.parameters(), lr=1e-3)
+for epoch in range(20):
+    train_epoch(model, train_loader, optimizer)
+    val_epoch(model, val_loader)
+
+
+Explanation:
+Only compute loss and accuracy on the predicted category token right after sep (index 68).
+
+Validate input batch and label alignment—category_labels must be batched, not full sequence.
+
+Use correct sequence positions and ensure the sep_idx is pointing to the right place.
+
+Model should be able to overfit a small batch for sanity.
+
+Tune hyperparameters, batch size, and layer size for your dataset if needed. This structure should give >25% accuracy if your data and labels are correct.
+
+
+
+
+Step 2
+Why Accuracy Is Stuck at 25%
+With 4 categories (C1, C2, C3, C4), random guessing produces a baseline accuracy of 25%. Stagnation here indicates the model isn’t learning meaningful patterns or rules for the card context.​
+
+
+
+Typical causes:
+
+Explanation:
+Input/label shuffling errors: Training data and labels aren’t aligned correctly; batches may be mismatched.
+
+Incorrect or insufficient model capacity: Too shallow, too few layers, not enough attention heads.
+
+Preprocessing bugs: Special tokens, batch construction, masking, or context encoding isn’t correct, so the model sees random/noisy inputs.
+
+Learning rate issues: Too high/low for the model to converge meaningfully.
+
+No contextual information: The model might not be able to exploit the sequence/context or switching cues if constructed poorly.
+
+
+
+
+Step 3
+Concrete Steps to Improve Accuracy
+1. Data Pipeline Diagnostics
+Explanation:
+Print a batch (inputs & expected outputs) end-to-end before training to ensure:
+
+Inputs and labels match in the same order.
+
+Special tokens (sep, EOS, category tokens) are in correct positions.
+
+2. Model Diagnostics
+Explanation:
+Ensure your transformer can overfit a very small dataset (e.g., 10 examples).
+
+If not, the architecture or pipeline is flawed.
+
+Double-check that category tokens are mapped correctly to indices [64–67], sep/eos (68/69) as expected.
+
+Check the loss and accuracy calculation—ensure you only compute loss/accuracy for category tokens following the sep, not for all tokens.
+
+3. Hyperparameters
+Explanation:
+Try lowering or raising the learning rate.
+
+If using dropout, try reducing it or removing it at first to let the model learn.
+
+Use a smaller model (one layer, one head), see if overfitting is possible before scaling up.
+
+4. Context and Sequence
+Explanation:
+Ensure your transformer gets the correct context up to sep, and you use attention masks (if needed) so that past tokens can be attended.
+
+5. Loss and Evaluation
+Explanation:
+For loss: Mask all tokens except for the output category token (after sep) for loss calculation.
+
+Double-check label indexing: e.g., for output label 0–3, cross-check against output logits, and account for off-by-one errors.
+
+6. General Advice
+Explanation:
+For loss: Mask all tokens except for the output category token (after sep) for loss calculation.
+
+Double-check label indexing: e.g., for output label 0–3, cross-check against output logits, and account for off-by-one errors.
+
+
+
+
+Answer
+A 25% ceiling always signals the model cannot find a learnable pattern—it’s almost always a data or loss pipeline bug, but can rarely be due to poor/insufficient model design. Start with sanity-checking the data pipeline, then proceed to architecture, and finally to optimizer/settings as needed
