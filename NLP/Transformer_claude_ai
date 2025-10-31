@@ -519,7 +519,7 @@ class ImprovedWCSTTrainer:
         plt.legend()
 
         plt.tight_layout()
-        plt.savefig('claude_training_curves.png', dpi=150)
+        plt.savefig('training_curves.png', dpi=150)
         plt.close()
 
     def evaluate_test(self):
@@ -577,7 +577,7 @@ class ImprovedWCSTTrainer:
         self.evaluate_test()
 
 
-class ClaudeRuleDetector:
+class RuleDetector:
     def __init__(self, model, test_dataset, batch_size=32):
         self.model = model
         self.model.eval()
@@ -667,7 +667,7 @@ class ClaudeRuleDetector:
 
         return average_scores
 
-    def visualize(self, average_scores, outfile='claude_attention.png'):
+    def visualize(self, average_scores, outfile='attention.png'):
         rows = []
         for (layer, head), scores in average_scores.items():
             for feat, val in scores.items():
@@ -757,15 +757,15 @@ def main():
     print("\nRunning detector on test set...")
 
     model.load_state_dict(torch.load("best_wcst_multi.pth", map_location=device))
-    detector = ClaudeRuleDetector(model, test_data, batch_size=32)
+    detector = RuleDetector(model, test_data, batch_size=32)
     avg_scores = detector.analyze()
-    detector.visualize(avg_scores, outfile='claude_attention.png')
+    detector.visualize(avg_scores, outfile='attention.png')
 
     print("\n  Done! Artifacts:")
     print("  - best_wcst_multi.pth")
-    print("  - claude_final_weights.pth")
-    print("  - claude_training_curves.png")
-    print("  - claude_attention.png")
+    print("  - final_weights.pth")
+    print("  - training_curves.png")
+    print("  - attention.png")
 
 
 if __name__ == "__main__":
