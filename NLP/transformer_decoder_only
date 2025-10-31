@@ -91,21 +91,13 @@ class WCST:
         return trials
 
     def get_card_features(self, card_index):
-        # Card index runs from 0 to 63.
-        # Feature mapping: 
-        # Colour: 0, Shape: 1, Quantity: 2
         if card_index < 0 or card_index >= 64:
             raise ValueError("Index must be between 0 and 63 for a card.")
-        # Quantity (varies every 4^0 = 1 index) - Feature 2
+        
         quantity_value = card_index % 4
-
-        # Shape (varies every 4^1 = 4 indices) - Feature 1
         shape_value = (card_index // 4) % 4
-
-        # Colour (varies every 4^2 = 16 indices) - Feature 0
         colour_value = (card_index // 16) % 4
 
-        # Returns (Colour_Value, Shape_Value, Quantity_Value)
         return (colour_value, shape_value, quantity_value)
 
 class Dataset_Loader:
@@ -347,9 +339,8 @@ class Transformer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
-        # CHANGED: decoder-only; ignore src
         tgt_embed = self.tgt_embedding(tgt)
-        tgt_pe = self.pos_enc(tgt).to(tgt.device)       # CHANGED
+        tgt_pe = self.pos_enc(tgt).to(tgt.device)       
         x = self.dropout(tgt_embed + tgt_pe)
 
         attn_maps_all = []
@@ -360,7 +351,6 @@ class Transformer(nn.Module):
         return logits, attn_maps_all
 
 class LabelSmoothingCrossEntropy(nn.Module):
-    # CHANGED: optimzing label smoothing
     def __init__(self, eps: float = 0.1, ignore_index: int = -100):
         super().__init__()
         self.eps = eps
@@ -378,7 +368,6 @@ class LabelSmoothingCrossEntropy(nn.Module):
         return loss.sum() / denom
 
 def build_adamw_with_param_groups(model: nn.Module, lr: float):
-    # Changed : AdamW and no decay on norms/biases
     decay, no_decay = [], []
     for n, p in model.named_parameters():
         if not p.requires_grad: continue
@@ -393,7 +382,6 @@ def build_adamw_with_param_groups(model: nn.Module, lr: float):
     )
 
 def get_warmup_cosine(total_steps: int, warmup_steps: int, base_lr: float, min_lr: float = 1e-6):
-    # Changed, warmup + cosine
     def lr_scale(step: int) -> float:
         if step < warmup_steps:
             return (step + 1) / float(max(1, warmup_steps))
@@ -616,13 +604,12 @@ class RuleDetector:
         plt.tight_layout(); plt.savefig('all_attention_self.png'); plt.show()
 
 if __name__ == "__main__":
-    # Changed, smaller for a quick, reliable run; scale up after sanity check
     training_batch = 20000
     classification_batch = 256
     train_split = 0.7
     val_split = 0.15
     test_split = 0.15
-    context_switch_interval = 1000000
+    context_switch_interval = 1000
 
     vocab_size = 70
     d_model = 128
@@ -634,7 +621,7 @@ if __name__ == "__main__":
 
     batch_size = 64
     learning_rate = 3e-4
-    epochs = 10          # Changed, increase after verifying
+    epochs = 10          
     patience = 8
 
     print("Loading dataset...")
