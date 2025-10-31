@@ -87,23 +87,12 @@ class WCST:
         return trials
 
     def get_card_features(self, card_index):
-        # Card index runs from 0 to 63.
-        # Feature mapping: 
-        # Colour: 0, Shape: 1, Quantity: 2
-            
         if card_index < 0 or card_index >= 64:
             raise ValueError("Index must be between 0 and 63 for a card.")
 
-        # Quantity (varies every 4^0 = 1 index) - Feature 2
         quantity_value = card_index % 4 
-            
-        # Shape (varies every 4^1 = 4 indices) - Feature 1
         shape_value = (card_index // 4) % 4
-            
-        # Colour (varies every 4^2 = 16 indices) - Feature 0
         colour_value = (card_index // 16) % 4
-            
-        # Returns (Colour_Value, Shape_Value, Quantity_Value)
         return (colour_value, shape_value, quantity_value)
 
 class Dataset_Loader:
@@ -147,7 +136,7 @@ class Dataset_Loader:
         train_data = []
         val_data = []
         test_data = []
-        seen = set()  # track all seen trial keys
+        seen = set()  
 
         n_train = int(np.floor(self.training_batch * self.train_split))
         n_val = int(np.floor(self.training_batch * self.val_split))
@@ -441,7 +430,6 @@ class FeedForward(nn.Module):
         else:
             raise ValueError(f"Unsupported activation: {activation}")
 
-        # Good default initialization
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.zeros_(self.fc1.bias)
         nn.init.xavier_uniform_(self.fc2.weight)
@@ -497,7 +485,7 @@ class Encoder(nn.Module):
             EncoderLayer(d_model, num_heads, d_ff, dropout)
             for _ in range(num_layers)
         ])
-        self.norm = nn.LayerNorm(d_model) # replace with custom normalization
+        self.norm = nn.LayerNorm(d_model) 
         
     def forward(self, x, mask=None):
         for layer in self.layers:
@@ -509,8 +497,8 @@ class EncoderLayer(nn.Module):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, num_heads, dropout)
         self.ff = FeedForward(d_model, d_ff, dropout)
-        self.norm1 = nn.LayerNorm(d_model) # replace with custom normalization
-        self.norm2 = nn.LayerNorm(d_model) # replace with custom normalization
+        self.norm1 = nn.LayerNorm(d_model) 
+        self.norm2 = nn.LayerNorm(d_model) 
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x, mask=None):
@@ -529,14 +517,13 @@ class EncoderLayer(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
-        self.ln_self = nn.LayerNorm(d_model) # replace with custom normalization
+        self.ln_self = nn.LayerNorm(d_model) 
         self.self_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-        self.ln_cross = nn.LayerNorm(d_model) # replace with custom normalization
+        self.ln_cross = nn.LayerNorm(d_model) 
         self.cross_attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads, dropout=dropout)
 
-        # Feed forward (uses 4 * d_model by default, GELU activation)
-        self.ln_ff = nn.LayerNorm(d_model) # replace with custom normalization
+        self.ln_ff = nn.LayerNorm(d_model) 
         self.ff = FeedForward(d_model=d_model, d_ff=4 * d_model, dropout=dropout, activation="gelu")
 
         self.drop = nn.Dropout(dropout)
@@ -672,8 +659,7 @@ class Trainer:
         )
     
     def create_masks(self, src, tgt):
-        """Create masks for transformer (simplified version)"""
-        # For this WCST task, we might not need complex masking since sequences are fixed
+        """Create masks for transformer"""
         src_mask = None
         tgt_mask = None
         return src_mask, tgt_mask
@@ -689,7 +675,6 @@ class Trainer:
         for src, tgt in tqdm(train_loader, desc="Training"):
             src, tgt = src.to(device), tgt.to(device)
             
-            # Teacher forcing: use tgt[:-1] as input, predict tgt[1:]
             tgt_input = tgt[:, :-1]
             tgt_output = tgt[:, 1:]
             
@@ -697,7 +682,6 @@ class Trainer:
             
             logits, _ = self.model(src, tgt_input)
             
-            # Calculate loss - only compare with the actual next tokens
             loss = self.criterion(logits.reshape(-1, logits.size(-1)), 
                                 tgt_output.reshape(-1))
             
@@ -707,7 +691,6 @@ class Trainer:
             
             total_loss += loss.item()
             
-            # Calculate accuracy for the last token (the actual prediction)
             preds = torch.argmax(logits[:, -1, :], dim=-1)
             correct += (preds == tgt[:, -1]).sum().item()
             total += preds.size(0)
