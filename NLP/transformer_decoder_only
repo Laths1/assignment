@@ -26,7 +26,7 @@ class WCST:
         self.shapes = ['circle','square','star','cross']
         self.quantities = ['1','2','3','4']
         self.categories = ['C1','C2','C3','C4']
-        self.category_feature = np.random.choice([0])
+        self.category_feature = np.random.choice([0,1,2])
         self.gen_deck()
         self.batch_size = batch_size
 
