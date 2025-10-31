@@ -1,0 +1,424 @@
+Using CUDA: Tesla T4
+GPU Memory: 15.8 GB
+====================
+WCST TRANSFORMER TRAINING
+====================
+
+Configuration:
+  Training size: 30000
+  Context trials: 4
+  Batch size: 32 (accumulation: 2x)
+  Effective batch: 64
+  Model: d_model=256, heads=8, layers=6
+  Learning rate: 0.0001
+  Device: cuda
+
+Generating 30000 sequences...
+Context trials per sequence: 4
+  Progress: 0/30000 (0.0%)
+  Progress: 1500/30000 (5.0%)
+  Progress: 3000/30000 (10.0%)
+  Progress: 4500/30000 (15.0%)
+  Progress: 6000/30000 (20.0%)
+  Progress: 7500/30000 (25.0%)
+  Progress: 9000/30000 (30.0%)
+  Progress: 10500/30000 (35.0%)
+  Progress: 12000/30000 (40.0%)
+  Progress: 13500/30000 (45.0%)
+  Progress: 15000/30000 (50.0%)
+  Progress: 16500/30000 (55.0%)
+  Progress: 18000/30000 (60.0%)
+  Progress: 19500/30000 (65.0%)
+  Progress: 21000/30000 (70.0%)
+  Progress: 22500/30000 (75.0%)
+  Progress: 24000/30000 (80.0%)
+  Progress: 25500/30000 (85.0%)
+  Progress: 27000/30000 (90.0%)
+  Progress: 28500/30000 (95.0%)
+  Padding sequences...
+  Max sequence length: 40
+  Converting to tensors...
+  Train: 21000, Val: 4500, Test: 4500
+
+✓ Data loaded successfully
+
+Building model...
+  Total parameters: 4,756,480
+  Model size: ~19.0 MB
+
+============================================================
+TRAINING START
+============================================================
+
+Epoch 1/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 932.1058 | FinalAcc: 0.000
+  Batch 130/657 | Loss: 92.6802 | FinalAcc: 0.188
+  Batch 195/657 | Loss: 76.9098 | FinalAcc: 0.312
+  Batch 260/657 | Loss: 57.2933 | FinalAcc: 0.156
+  Batch 325/657 | Loss: 44.4366 | FinalAcc: 0.375
+  Batch 390/657 | Loss: 30.2654 | FinalAcc: 0.219
+  Batch 455/657 | Loss: 20.4164 | FinalAcc: 0.312
+  Batch 520/657 | Loss: 15.4719 | FinalAcc: 0.281
+  Batch 585/657 | Loss: 12.6697 | FinalAcc: 0.406
+  Batch 650/657 | Loss: 9.9432 | FinalAcc: 0.344
+
+Epoch 001 Summary:
+  Train: loss=305.5949, masked_acc=0.274, final_acc=0.248
+  Val:   loss=16.6530, masked_acc=0.423, final_acc=0.359
+A new best model saved!
+
+Epoch 2/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 10.2343 | FinalAcc: 0.375
+  Batch 130/657 | Loss: 8.0945 | FinalAcc: 0.344
+  Batch 195/657 | Loss: 7.7818 | FinalAcc: 0.281
+  Batch 260/657 | Loss: 6.1340 | FinalAcc: 0.594
+  Batch 325/657 | Loss: 6.0540 | FinalAcc: 0.500
+  Batch 390/657 | Loss: 5.1845 | FinalAcc: 0.438
+  Batch 455/657 | Loss: 3.3952 | FinalAcc: 0.438
+  Batch 520/657 | Loss: 3.9325 | FinalAcc: 0.656
+  Batch 585/657 | Loss: 4.1943 | FinalAcc: 0.625
+  Batch 650/657 | Loss: 4.6050 | FinalAcc: 0.500
+
+Epoch 002 Summary:
+  Train: loss=6.2422, masked_acc=0.600, final_acc=0.459
+  Val:   loss=4.2364, masked_acc=0.765, final_acc=0.627
+A new best model saved!
+
+Epoch 3/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 2.5756 | FinalAcc: 0.562
+  Batch 130/657 | Loss: 4.5191 | FinalAcc: 0.438
+  Batch 195/657 | Loss: 3.4576 | FinalAcc: 0.438
+  Batch 260/657 | Loss: 3.4357 | FinalAcc: 0.406
+  Batch 325/657 | Loss: 2.7754 | FinalAcc: 0.656
+  Batch 390/657 | Loss: 3.7181 | FinalAcc: 0.844
+  Batch 455/657 | Loss: 2.5145 | FinalAcc: 0.781
+  Batch 520/657 | Loss: 2.1091 | FinalAcc: 0.500
+  Batch 585/657 | Loss: 1.6269 | FinalAcc: 0.781
+  Batch 650/657 | Loss: 1.8810 | FinalAcc: 0.719
+
+Epoch 003 Summary:
+  Train: loss=2.8895, masked_acc=0.763, final_acc=0.605
+  Val:   loss=1.5125, masked_acc=0.898, final_acc=0.814
+A new best model saved!
+
+Epoch 4/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 1.8482 | FinalAcc: 0.781
+  Batch 130/657 | Loss: 2.0117 | FinalAcc: 0.562
+  Batch 195/657 | Loss: 2.9070 | FinalAcc: 0.562
+  Batch 260/657 | Loss: 1.9995 | FinalAcc: 0.500
+  Batch 325/657 | Loss: 1.7140 | FinalAcc: 0.625
+  Batch 390/657 | Loss: 1.2859 | FinalAcc: 0.781
+  Batch 455/657 | Loss: 1.7664 | FinalAcc: 0.594
+  Batch 520/657 | Loss: 1.7063 | FinalAcc: 0.688
+  Batch 585/657 | Loss: 1.5702 | FinalAcc: 0.469
+  Batch 650/657 | Loss: 1.9541 | FinalAcc: 0.812
+
+Epoch 004 Summary:
+  Train: loss=1.9040, masked_acc=0.829, final_acc=0.683
+  Val:   loss=1.2302, masked_acc=0.921, final_acc=0.865
+A new best model saved!
+
+Epoch 5/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 1.6981 | FinalAcc: 0.750
+  Batch 130/657 | Loss: 0.9308 | FinalAcc: 0.781
+  Batch 195/657 | Loss: 1.0986 | FinalAcc: 0.812
+  Batch 260/657 | Loss: 1.1140 | FinalAcc: 0.844
+  Batch 325/657 | Loss: 1.3443 | FinalAcc: 0.750
+  Batch 390/657 | Loss: 1.3760 | FinalAcc: 0.812
+  Batch 455/657 | Loss: 0.8246 | FinalAcc: 0.844
+  Batch 520/657 | Loss: 1.0708 | FinalAcc: 0.719
+  Batch 585/657 | Loss: 1.4484 | FinalAcc: 0.781
+  Batch 650/657 | Loss: 0.9343 | FinalAcc: 0.875
+
+Epoch 005 Summary:
+  Train: loss=1.3685, masked_acc=0.871, final_acc=0.736
+  Val:   loss=1.0758, masked_acc=0.933, final_acc=0.855
+A new best model saved!
+
+Epoch 6/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 1.5878 | FinalAcc: 0.719
+  Batch 130/657 | Loss: 0.8079 | FinalAcc: 0.812
+  Batch 195/657 | Loss: 1.4168 | FinalAcc: 0.844
+  Batch 260/657 | Loss: 0.9530 | FinalAcc: 0.719
+  Batch 325/657 | Loss: 0.7741 | FinalAcc: 0.750
+  Batch 390/657 | Loss: 0.8657 | FinalAcc: 0.781
+  Batch 455/657 | Loss: 1.2523 | FinalAcc: 0.781
+  Batch 520/657 | Loss: 0.4301 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.9862 | FinalAcc: 0.812
+  Batch 650/657 | Loss: 1.1903 | FinalAcc: 0.812
+
+Epoch 006 Summary:
+  Train: loss=1.0724, masked_acc=0.897, final_acc=0.775
+  Val:   loss=0.5238, masked_acc=0.967, final_acc=0.932
+A new best model saved!
+
+Epoch 7/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.4396 | FinalAcc: 0.906
+  Batch 130/657 | Loss: 0.6627 | FinalAcc: 0.875
+  Batch 195/657 | Loss: 0.6286 | FinalAcc: 0.812
+  Batch 260/657 | Loss: 0.4420 | FinalAcc: 0.875
+  Batch 325/657 | Loss: 1.5520 | FinalAcc: 0.719
+  Batch 390/657 | Loss: 0.4484 | FinalAcc: 0.906
+  Batch 455/657 | Loss: 1.2766 | FinalAcc: 0.844
+  Batch 520/657 | Loss: 0.7351 | FinalAcc: 0.906
+  Batch 585/657 | Loss: 0.6248 | FinalAcc: 0.844
+  Batch 650/657 | Loss: 1.6578 | FinalAcc: 0.625
+
+Epoch 007 Summary:
+  Train: loss=0.8303, masked_acc=0.919, final_acc=0.814
+  Val:   loss=0.2995, masked_acc=0.980, final_acc=0.952
+A new best model saved!
+
+Epoch 8/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 1.2721 | FinalAcc: 0.688
+  Batch 130/657 | Loss: 0.4805 | FinalAcc: 0.812
+  Batch 195/657 | Loss: 0.8673 | FinalAcc: 0.875
+  Batch 260/657 | Loss: 0.5261 | FinalAcc: 0.812
+  Batch 325/657 | Loss: 0.3978 | FinalAcc: 0.812
+  Batch 390/657 | Loss: 0.4860 | FinalAcc: 0.781
+  Batch 455/657 | Loss: 0.5322 | FinalAcc: 0.938
+  Batch 520/657 | Loss: 0.3037 | FinalAcc: 0.812
+  Batch 585/657 | Loss: 0.5518 | FinalAcc: 0.938
+  Batch 650/657 | Loss: 1.0942 | FinalAcc: 0.750
+
+Epoch 008 Summary:
+  Train: loss=0.6750, masked_acc=0.933, final_acc=0.844
+  Val:   loss=0.5110, masked_acc=0.971, final_acc=0.933
+  No improvement for 1 epoch(s)
+
+Epoch 9/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.4391 | FinalAcc: 0.875
+  Batch 130/657 | Loss: 0.5822 | FinalAcc: 0.875
+  Batch 195/657 | Loss: 0.5971 | FinalAcc: 0.812
+  Batch 260/657 | Loss: 0.2258 | FinalAcc: 0.906
+  Batch 325/657 | Loss: 0.5206 | FinalAcc: 0.969
+  Batch 390/657 | Loss: 0.5423 | FinalAcc: 0.906
+  Batch 455/657 | Loss: 0.2083 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.7102 | FinalAcc: 0.812
+  Batch 585/657 | Loss: 0.5272 | FinalAcc: 0.938
+  Batch 650/657 | Loss: 0.7059 | FinalAcc: 0.812
+
+Epoch 009 Summary:
+  Train: loss=0.5459, masked_acc=0.946, final_acc=0.869
+  Val:   loss=0.2901, masked_acc=0.986, final_acc=0.960
+A new best model saved!
+
+Epoch 10/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.5612 | FinalAcc: 0.812
+  Batch 130/657 | Loss: 0.4588 | FinalAcc: 0.906
+  Batch 195/657 | Loss: 0.4613 | FinalAcc: 0.906
+  Batch 260/657 | Loss: 0.5039 | FinalAcc: 0.969
+  Batch 325/657 | Loss: 0.1122 | FinalAcc: 0.969
+  Batch 390/657 | Loss: 0.2680 | FinalAcc: 0.938
+  Batch 455/657 | Loss: 0.3917 | FinalAcc: 0.938
+  Batch 520/657 | Loss: 0.4079 | FinalAcc: 0.906
+  Batch 585/657 | Loss: 0.2807 | FinalAcc: 0.875
+  Batch 650/657 | Loss: 0.3650 | FinalAcc: 1.000
+
+Epoch 010 Summary:
+  Train: loss=0.4422, masked_acc=0.957, final_acc=0.895
+  Val:   loss=0.3859, masked_acc=0.980, final_acc=0.944
+  No improvement for 1 epoch(s)
+
+Epoch 11/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.2864 | FinalAcc: 0.906
+  Batch 130/657 | Loss: 0.3933 | FinalAcc: 0.875
+  Batch 195/657 | Loss: 0.2734 | FinalAcc: 0.938
+  Batch 260/657 | Loss: 0.3509 | FinalAcc: 0.906
+  Batch 325/657 | Loss: 0.0758 | FinalAcc: 0.938
+  Batch 390/657 | Loss: 0.3819 | FinalAcc: 0.875
+  Batch 455/657 | Loss: 0.6863 | FinalAcc: 0.906
+  Batch 520/657 | Loss: 0.2139 | FinalAcc: 0.875
+  Batch 585/657 | Loss: 0.2782 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.1241 | FinalAcc: 0.906
+
+Epoch 011 Summary:
+  Train: loss=0.3643, masked_acc=0.967, final_acc=0.917
+  Val:   loss=0.1515, masked_acc=0.991, final_acc=0.975
+A new best model saved!
+
+Epoch 12/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.2297 | FinalAcc: 0.969
+  Batch 130/657 | Loss: 0.2944 | FinalAcc: 0.938
+  Batch 195/657 | Loss: 0.3398 | FinalAcc: 0.969
+  Batch 260/657 | Loss: 0.2501 | FinalAcc: 0.875
+  Batch 325/657 | Loss: 0.2214 | FinalAcc: 0.938
+  Batch 390/657 | Loss: 0.1635 | FinalAcc: 0.906
+  Batch 455/657 | Loss: 0.0715 | FinalAcc: 0.938
+  Batch 520/657 | Loss: 0.0993 | FinalAcc: 0.969
+  Batch 585/657 | Loss: 0.5389 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.7405 | FinalAcc: 0.906
+
+Epoch 012 Summary:
+  Train: loss=0.2866, masked_acc=0.974, final_acc=0.932
+  Val:   loss=0.0470, masked_acc=0.997, final_acc=0.989
+A new best model saved!
+
+Epoch 13/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.2709 | FinalAcc: 0.906
+  Batch 130/657 | Loss: 0.6641 | FinalAcc: 0.781
+  Batch 195/657 | Loss: 0.4086 | FinalAcc: 0.938
+  Batch 260/657 | Loss: 0.0087 | FinalAcc: 0.969
+  Batch 325/657 | Loss: 0.4421 | FinalAcc: 0.969
+  Batch 390/657 | Loss: 0.1785 | FinalAcc: 0.906
+  Batch 455/657 | Loss: 0.0517 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.2603 | FinalAcc: 0.938
+  Batch 585/657 | Loss: 0.2072 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.0855 | FinalAcc: 1.000
+
+Epoch 013 Summary:
+  Train: loss=0.2182, masked_acc=0.982, final_acc=0.951
+  Val:   loss=0.0153, masked_acc=0.999, final_acc=0.996
+A new best model saved!
+
+Epoch 14/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.0853 | FinalAcc: 1.000
+  Batch 130/657 | Loss: 0.0754 | FinalAcc: 0.969
+  Batch 195/657 | Loss: 0.1799 | FinalAcc: 0.906
+  Batch 260/657 | Loss: 0.1483 | FinalAcc: 0.969
+  Batch 325/657 | Loss: 0.0439 | FinalAcc: 0.938
+  Batch 390/657 | Loss: 0.1695 | FinalAcc: 0.938
+  Batch 455/657 | Loss: 0.0242 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.2450 | FinalAcc: 0.938
+  Batch 585/657 | Loss: 0.0177 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.1755 | FinalAcc: 0.969
+
+Epoch 014 Summary:
+  Train: loss=0.1795, masked_acc=0.986, final_acc=0.963
+  Val:   loss=0.0045, masked_acc=1.000, final_acc=0.999
+A new best model saved!
+
+Epoch 15/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.2312 | FinalAcc: 0.938
+  Batch 130/657 | Loss: 0.0143 | FinalAcc: 1.000
+  Batch 195/657 | Loss: 0.4379 | FinalAcc: 0.969
+  Batch 260/657 | Loss: 0.4568 | FinalAcc: 0.938
+  Batch 325/657 | Loss: 0.1336 | FinalAcc: 0.969
+  Batch 390/657 | Loss: 0.2277 | FinalAcc: 0.938
+  Batch 455/657 | Loss: 0.0657 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.8193 | FinalAcc: 0.906
+  Batch 650/657 | Loss: 0.3056 | FinalAcc: 1.000
+
+Epoch 015 Summary:
+  Train: loss=0.1558, masked_acc=0.989, final_acc=0.969
+  Val:   loss=0.0191, masked_acc=0.999, final_acc=0.996
+  No improvement for 1 epoch(s)
+
+Epoch 16/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.0417 | FinalAcc: 0.969
+  Batch 130/657 | Loss: 0.3733 | FinalAcc: 1.000
+  Batch 195/657 | Loss: 0.0382 | FinalAcc: 1.000
+  Batch 260/657 | Loss: 0.0012 | FinalAcc: 1.000
+  Batch 325/657 | Loss: 0.0710 | FinalAcc: 0.969
+  Batch 390/657 | Loss: 0.0945 | FinalAcc: 1.000
+  Batch 455/657 | Loss: 0.1332 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.2210 | FinalAcc: 0.938
+  Batch 585/657 | Loss: 0.1635 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.0114 | FinalAcc: 0.969
+
+Epoch 016 Summary:
+  Train: loss=0.1268, masked_acc=0.992, final_acc=0.978
+  Val:   loss=0.0107, masked_acc=1.000, final_acc=0.998
+  No improvement for 2 epoch(s)
+
+Epoch 17/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.0070 | FinalAcc: 0.969
+  Batch 130/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 195/657 | Loss: 0.4801 | FinalAcc: 0.875
+  Batch 260/657 | Loss: 0.1035 | FinalAcc: 0.969
+  Batch 325/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 390/657 | Loss: 0.0152 | FinalAcc: 1.000
+  Batch 455/657 | Loss: 0.0258 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.1313 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.2705 | FinalAcc: 0.938
+
+Epoch 017 Summary:
+  Train: loss=0.0996, masked_acc=0.994, final_acc=0.982
+  Val:   loss=0.0035, masked_acc=1.000, final_acc=0.999
+A new best model saved!
+
+Epoch 18/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 130/657 | Loss: 0.0400 | FinalAcc: 0.969
+  Batch 195/657 | Loss: 0.1064 | FinalAcc: 1.000
+  Batch 260/657 | Loss: 0.0353 | FinalAcc: 0.969
+  Batch 325/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 390/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 455/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 520/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 650/657 | Loss: 0.0000 | FinalAcc: 1.000
+
+Epoch 018 Summary:
+  Train: loss=0.1016, masked_acc=0.995, final_acc=0.983
+  Val:   loss=0.0033, masked_acc=1.000, final_acc=0.999
+A new best model saved!
+
+Epoch 19/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.2225 | FinalAcc: 0.969
+  Batch 130/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 195/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 260/657 | Loss: 0.1251 | FinalAcc: 0.938
+  Batch 325/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 390/657 | Loss: 0.0280 | FinalAcc: 1.000
+  Batch 455/657 | Loss: 0.0024 | FinalAcc: 1.000
+  Batch 520/657 | Loss: 0.0001 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.2153 | FinalAcc: 0.969
+  Batch 650/657 | Loss: 0.0000 | FinalAcc: 1.000
+
+Epoch 019 Summary:
+  Train: loss=0.0769, masked_acc=0.996, final_acc=0.987
+  Val:   loss=0.0002, masked_acc=1.000, final_acc=1.000
+A new best model saved!
+
+Epoch 20/20
+------------------------------------------------------------
+  Batch 65/657 | Loss: 0.0001 | FinalAcc: 1.000
+  Batch 130/657 | Loss: 0.0004 | FinalAcc: 1.000
+  Batch 195/657 | Loss: 0.2277 | FinalAcc: 0.969
+  Batch 260/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 325/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 390/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 455/657 | Loss: 0.3967 | FinalAcc: 0.969
+  Batch 520/657 | Loss: 0.0000 | FinalAcc: 1.000
+  Batch 585/657 | Loss: 0.2304 | FinalAcc: 0.938
+  Batch 650/657 | Loss: 0.0000 | FinalAcc: 1.000
+
+Epoch 020 Summary:
+  Train: loss=0.0667, masked_acc=0.997, final_acc=0.991
+  Val:   loss=0.0096, masked_acc=1.000, final_acc=0.999
+  No improvement for 1 epoch(s)
+Final weights saved -> final_weights.pth
+Training curves saved -> training_curves.png
+
+TEST Results: loss=0.0005, masked_acc=1.000, final_acc=1.000
+
+Running detector on test set...
+Attention heatmaps saved -> claude_attention.png
+
+  Done! Artifacts:
+  - wcst_multi.pth
+  - final_weights.pth
+  - training_curves.png
+  - attention.png
